@@ -68,7 +68,7 @@ public class MedicineItemReaderFactory {
     private static final String TYPE = "type";
 
     /// Column name constant for the medicine origin.
-    private static final String STATUS = "origin";
+    private static final String STATUS = "status";
 
     /// Ordered field names for the **nomenclature** CSV format.
     ///
