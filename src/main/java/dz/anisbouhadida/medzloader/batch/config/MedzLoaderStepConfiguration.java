@@ -2,9 +2,11 @@ package dz.anisbouhadida.medzloader.batch.config;
 
 import dz.anisbouhadida.medzloader.batch.dto.MedicineLine;
 import dz.anisbouhadida.medzloader.domain.model.Medicine;
+import dz.anisbouhadida.medzloader.domain.model.MedicineEvent;
 import org.springframework.batch.core.repository.JobRepository;
 import org.springframework.batch.core.step.Step;
 import org.springframework.batch.core.step.builder.StepBuilder;
+import org.springframework.batch.infrastructure.item.ItemProcessor;
 import org.springframework.batch.infrastructure.item.ItemReader;
 import org.springframework.batch.infrastructure.item.ItemWriter;
 import org.springframework.context.annotation.Bean;
@@ -32,14 +34,12 @@ public class MedzLoaderStepConfiguration {
     public Step medzLoaderStep(JobRepository jobRepository,
                                PlatformTransactionManager transactionManager,
                                ItemReader<MedicineLine> multiCsvItemReader,
-                               ItemWriter<MedicineLine> itemWriter) {
+                               ItemProcessor<MedicineLine, MedicineEvent> medicineItemProcessor,
+                               ItemWriter<MedicineEvent> itemWriter) {
         return new StepBuilder("medzLoaderStep",jobRepository)
-                .<MedicineLine,MedicineLine>chunk(10).transactionManager(transactionManager)
+                .<MedicineLine,MedicineEvent>chunk(10).transactionManager(transactionManager)
                 .reader(multiCsvItemReader)
-                .processor(item -> {
-                    System.out.println("Processing: " + item);
-                    return item;
-                })
+                .processor(medicineItemProcessor)
                 .writer(itemWriter)
                 .build();
 
