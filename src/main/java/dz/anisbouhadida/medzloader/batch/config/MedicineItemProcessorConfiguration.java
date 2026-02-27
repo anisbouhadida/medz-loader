@@ -4,11 +4,10 @@ import dz.anisbouhadida.medzloader.batch.dto.MedicineLine;
 import dz.anisbouhadida.medzloader.batch.dto.NomenclatureLine;
 import dz.anisbouhadida.medzloader.batch.dto.NonRenewalLine;
 import dz.anisbouhadida.medzloader.batch.dto.WithdrawalLine;
+import dz.anisbouhadida.medzloader.batch.support.mapper.MedicineLineMapper;
+import dz.anisbouhadida.medzloader.batch.support.mapper.MedicineLineMapperImpl;
 import dz.anisbouhadida.medzloader.domain.model.MedicineEvent;
 import dz.anisbouhadida.medzloader.domain.model.NomenclatureEvent;
-import dz.anisbouhadida.medzloader.domain.model.NonRenewalEvent;
-import dz.anisbouhadida.medzloader.domain.model.WithdrawalEvent;
-import org.jspecify.annotations.NonNull;
 import org.springframework.batch.infrastructure.item.ItemProcessor;
 import org.springframework.batch.infrastructure.item.support.ClassifierCompositeItemProcessor;
 import org.springframework.batch.infrastructure.item.support.CompositeItemProcessor;
@@ -66,16 +65,21 @@ public class MedicineItemProcessorConfiguration {
 
     @Bean
     protected ItemProcessor<NomenclatureLine, NomenclatureEvent> nomenclatureItemProcessor() {
-        return _ -> new NomenclatureEvent(null, null, null, null);
+        return medicineLineMapper()::toMedicineEvent;
     }
 
     @Bean
     protected ItemProcessor<WithdrawalLine, MedicineEvent> withdrawalItemProcessor() {
-        return _ -> new WithdrawalEvent(null, null, null);
+        return medicineLineMapper()::toMedicineEvent;
     }
 
     @Bean
     protected ItemProcessor<NonRenewalLine, MedicineEvent> nonRenewalItemProcessor() {
-        return _ -> new NonRenewalEvent(null, null, null);
+        return medicineLineMapper()::toMedicineEvent;
+    }
+
+    @Bean
+    protected MedicineLineMapper medicineLineMapper() {
+        return new MedicineLineMapperImpl();
     }
 }

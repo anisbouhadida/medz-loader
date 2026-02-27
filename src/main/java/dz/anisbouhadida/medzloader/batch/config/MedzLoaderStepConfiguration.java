@@ -1,7 +1,6 @@
 package dz.anisbouhadida.medzloader.batch.config;
 
 import dz.anisbouhadida.medzloader.batch.dto.MedicineLine;
-import dz.anisbouhadida.medzloader.domain.model.Medicine;
 import dz.anisbouhadida.medzloader.domain.model.MedicineEvent;
 import org.springframework.batch.core.repository.JobRepository;
 import org.springframework.batch.core.step.Step;
@@ -16,7 +15,7 @@ import org.springframework.transaction.PlatformTransactionManager;
 /// Configuration class that defines the main batch [Step] for loading medicine data.
 ///
 /// The step reads [MedicineLine] records from CSV files, processes them into
-/// [Medicine] domain objects, and writes the results using the provided
+/// [MedicineEvent] domain objects, and writes the results using the provided
 /// [ItemWriter].
 @Configuration
 public class MedzLoaderStepConfiguration {
@@ -28,7 +27,8 @@ public class MedzLoaderStepConfiguration {
     /// @param jobRepository       the repository used to persist step metadata
     /// @param transactionManager  the transaction manager governing chunk boundaries
     /// @param multiCsvItemReader          the reader supplying [MedicineLine] records
-    /// @param itemWriter          the writer persisting [Medicine] objects
+    /// @param medicineItemProcessor       the processor transforming [MedicineLine] to [MedicineEvent]
+    /// @param itemWriter          the writer persisting [MedicineEvent] objectsMedicineEvent
     /// @return a fully configured batch step
     @Bean
     public Step medzLoaderStep(JobRepository jobRepository,
