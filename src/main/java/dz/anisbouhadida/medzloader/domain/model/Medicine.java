@@ -21,7 +21,6 @@ import java.time.LocalDateTime;
 /// @param list Classification list
 /// @param p1 P1 data
 /// @param p2 P2 data
-/// @param observations Specific observations (can be null)
 /// @param laboratoryHolder Laboratory holding the registration decision
 /// @param laboratoryCountry Country of the laboratory holder
 /// @param initialRegistrationDate Initial registration date
@@ -38,7 +37,6 @@ public record Medicine(
         String list,
         String p1,
         String p2,
-        String observations,
         String laboratoryHolder,
         String laboratoryCountry,
         LocalDateTime initialRegistrationDate,
