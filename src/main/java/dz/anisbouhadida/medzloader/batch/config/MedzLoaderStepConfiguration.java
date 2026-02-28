@@ -22,7 +22,7 @@ public class MedzLoaderStepConfiguration {
 
     /// Builds the chunk-oriented [Step] that orchestrates the medicine loading pipeline.
     ///
-    /// Each chunk processes **10** items at a time within a single transaction.
+    /// Each chunk processes **100** items at a time within a single transaction.
     ///
     /// @param jobRepository       the repository used to persist step metadata
     /// @param transactionManager  the transaction manager governing chunk boundaries
