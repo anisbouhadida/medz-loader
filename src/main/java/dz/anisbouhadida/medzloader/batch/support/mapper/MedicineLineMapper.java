@@ -52,9 +52,17 @@ public interface MedicineLineMapper {
     @Mapping(target = "observations", source = "obs")
     NonRenewalEvent toMedicineEvent(NonRenewalLine line);
 
+    @Deprecated(forRemoval = true)
     default LocalDateTime parseDate(String dateStr) {
-        return (dateStr == null || dateStr.isBlank()) ? null
-                : LocalDateTime.parse(dateStr, DATE_FORMATTER);
+
+        if (dateStr == null || dateStr.isBlank()) {
+            return null;
+        }
+        try {
+            return LocalDateTime.parse(dateStr, DATE_FORMATTER);
+        } catch (Exception _) {
+            return null;
+        }
     }
 
     default MedicineType toMedicineType(String typeStr) {
