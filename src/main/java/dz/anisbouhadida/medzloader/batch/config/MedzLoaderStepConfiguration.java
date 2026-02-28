@@ -28,19 +28,20 @@ public class MedzLoaderStepConfiguration {
     /// @param transactionManager  the transaction manager governing chunk boundaries
     /// @param multiCsvItemReader          the reader supplying [MedicineLine] records
     /// @param medicineItemProcessor       the processor transforming [MedicineLine] to [MedicineEvent]
-    /// @param itemWriter          the writer persisting [MedicineEvent] objectsMedicineEvent
+    /// @param medicineCompositeItemWriter          the writer persisting [MedicineEvent] objectsMedicineEvent
     /// @return a fully configured batch step
     @Bean
     public Step medzLoaderStep(JobRepository jobRepository,
                                PlatformTransactionManager transactionManager,
                                ItemReader<MedicineLine> multiCsvItemReader,
                                ItemProcessor<MedicineLine, MedicineEvent> medicineItemProcessor,
-                               ItemWriter<MedicineEvent> itemWriter) {
+                               ItemWriter<MedicineEvent> medicineCompositeItemWriter) {
         return new StepBuilder("medzLoaderStep",jobRepository)
-                .<MedicineLine,MedicineEvent>chunk(10).transactionManager(transactionManager)
+                .<MedicineLine,MedicineEvent>chunk(100).transactionManager(transactionManager)
                 .reader(multiCsvItemReader)
                 .processor(medicineItemProcessor)
-                .writer(itemWriter)
+                .writer(medicineCompositeItemWriter)
+                .faultTolerant()
                 .build();
 
     }
