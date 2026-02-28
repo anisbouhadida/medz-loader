@@ -41,5 +41,6 @@ public record Medicine(
         String laboratoryCountry,
         LocalDateTime initialRegistrationDate,
         MedicineType type,
-        MedicineOrigin origin
+        MedicineOrigin origin,
+        int version
 ) {}
