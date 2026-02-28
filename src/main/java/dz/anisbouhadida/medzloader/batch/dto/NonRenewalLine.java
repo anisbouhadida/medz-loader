@@ -40,6 +40,7 @@ public record NonRenewalLine(
         @NotNull @Positive
         Integer id,
 
+        @Pattern(regexp = ".+", message = "registrationNumber must not be blank")
         String registrationNumber,
 
         @Pattern(regexp = ".+", message = "code must not be blank")
