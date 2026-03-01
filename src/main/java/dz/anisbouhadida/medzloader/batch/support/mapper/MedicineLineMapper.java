@@ -112,11 +112,14 @@ public interface MedicineLineMapper {
     /// Converts the raw `type` string from a CSV row into a [MedicineType] enum constant.
     ///
     /// Accepted values: `GE`, `G` → [MedicineType#GE]; `RE`, `R` → [MedicineType#RE];
-    /// `BIO` → [MedicineType#BIO]. Any other value (including blank) returns `null`.
+    /// `BIO` → [MedicineType#BIO]. Any other value (including `null` or blank) returns `null`.
     ///
-    /// @param typeStr the raw type string from the CSV file
-    /// @return the matching [MedicineType], or `null` if unrecognised
+    /// @param typeStr the raw type string from the CSV file — may be `null`
+    /// @return the matching [MedicineType], or `null` if unrecognised or input is `null`
     default MedicineType toMedicineType(String typeStr) {
+        if (typeStr == null) {
+            return null;
+        }
         return switch (typeStr) {
             case "GE", "G" -> MedicineType.GE;
             case "RE", "R" -> MedicineType.RE;
@@ -128,11 +131,14 @@ public interface MedicineLineMapper {
     /// Converts the raw `status` string from a CSV row into a [MedicineOrigin] enum constant.
     ///
     /// Accepted values: `F` → [MedicineOrigin#MANUFACTURED]; `I` → [MedicineOrigin#IMPORTED].
-    /// Any other value (including `i` or blank) returns `null`.
+    /// Any other value (including `null`, `i` or blank) returns `null`.
     ///
-    /// @param statusStr the raw origin/status string from the CSV file
-    /// @return the matching [MedicineOrigin], or `null` if unrecognised
+    /// @param statusStr the raw origin/status string from the CSV file — may be `null`
+    /// @return the matching [MedicineOrigin], or `null` if unrecognised or input is `null`
     default MedicineOrigin toMedicineOrigin(String statusStr) {
+        if (statusStr == null) {
+            return null;
+        }
         return switch (statusStr) {
             case "F" -> MedicineOrigin.MANUFACTURED;
             case "I" -> MedicineOrigin.IMPORTED;
