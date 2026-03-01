@@ -13,9 +13,9 @@ import java.time.LocalDateTime;
 
 import static org.assertj.core.api.Assertions.assertThat;
 
-/// Note: We cannot test the default methods through the generated implementation since MapStruct generates the mapper at compile time, and we don't have access to it in the test.
-/// Instead, we create an anonymous subclass of the interface to test the default methods directly. The abstract methods are not relevant for these tests and can return null.
-/// This approach allows us to test the default methods in isolation without needing the full MapStruct setup.
+/// Note: In these tests, we intentionally do not use the MapStruct-generated implementation.
+/// Instead, we create an anonymous subclass of the interface to exercise the default methods directly.
+/// The abstract mapping methods are irrelevant for these tests and can safely return null, allowing us to test the default methods in isolation.
 @DisplayName("MedicineLineMapper — default methods")
 class MedicineLineMapperDefaultMethodsTest {
 
