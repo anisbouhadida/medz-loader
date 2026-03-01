@@ -110,9 +110,9 @@ jobs:
           git add pom.xml
           git commit -m "chore(release): prepare for next development iteration ${{ steps.version.outputs.next_snapshot }}"
 
-      # ── Push main + tag (release branch is ephemeral, not pushed back) ────────
-      - name: Push main and tag
-        run: git push origin main --tags
+      # ── Push release tag only (release branch is ephemeral; main pushed later) ─
+      - name: Push release tag
+        run: git push origin "v${{ steps.version.outputs.release }}"
 
       # ── Upload test report ────────────────────────────────────────────────────
       - name: Upload Surefire reports
@@ -194,6 +194,10 @@ jobs:
           files: target/medz-loader-${{ steps.version.outputs.release }}.jar
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+
+      # ── Push main only after GitHub Release succeeds ──────────────────────────
+      - name: Push main
+        run: git push origin main
 
 
 
