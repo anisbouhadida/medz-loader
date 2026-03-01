@@ -13,6 +13,7 @@
     <version>0.1.0-SNAPSHOT</version>
     <name>medz-loader</name>
     <description>medz-loader</description>
+
     <url/>
     <licenses>
         <license/>
@@ -29,6 +30,7 @@
     <properties>
         <java.version>25</java.version>
         <org.mapstruct.version>1.6.3</org.mapstruct.version>
+        <start-class>dz.anisbouhadida.medzloader.MedzLoaderApplication</start-class>
     </properties>
     <dependencies>
         <dependency>

@@ -1,0 +1,75 @@
+name: CI – Build & Package
+
+on:
+  push:
+    branches:
+      - main
+      - "feature/**"
+      - "fix/**"
+  pull_request:
+    branches:
+      - main
+
+concurrency:
+  group: ci-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  build:
+    name: Build & Test
+    runs-on: ubuntu-latest
+
+    # ── PostgreSQL service container ─────────────────────────────────────────
+    services:
+      postgres:
+        image: postgres:17-alpine
+        env:
+          POSTGRES_DB: medz_test
+          POSTGRES_USER: medz
+          POSTGRES_PASSWORD: medz
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd "pg_isready -U medz -d medz_test"
+          --health-interval 10s
+          --health-timeout 5s
+          --health-retries 5
+
+    steps:
+      # ── Checkout ──────────────────────────────────────────────────────────────
+      - name: Checkout source
+        uses: actions/checkout@v6
+
+      # ── Java ──────────────────────────────────────────────────────────────────
+      - name: Set up JDK 25
+        uses: actions/setup-java@v5
+        with:
+          java-version: "25"
+          distribution: "temurin"
+          cache: "maven"
+          cache-dependency-path: "**/pom.xml"
+
+      # ── Build & Test ──────────────────────────────────────────────────────────
+      - name: Build and run tests
+        env:
+          # Activate the test profile so Spring picks up application-test.properties
+          SPRING_PROFILES_ACTIVE: test
+        run: ./mvnw --batch-mode verify
+
+      # ── Upload test report ────────────────────────────────────────────────────
+      - name: Upload Surefire reports
+        if: always()
+        uses: actions/upload-artifact@v6
+        with:
+          name: surefire-reports
+          path: target/surefire-reports/
+          retention-days: 14
+
+      # ── Upload fat JAR ────────────────────────────────────────────────────────
+      - name: Upload application JAR
+        uses: actions/upload-artifact@v6
+        with:
+          name: medz-loader-jar
+          path: target/medz-loader-*.jar
+          retention-days: 14
+
