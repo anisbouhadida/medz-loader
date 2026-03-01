@@ -147,11 +147,15 @@ jobs:
 
           echo "Generating notes for range: $RANGE_LABEL"
 
-          # Helper: extract commits matching a prefix
+          # Helper: extract commits matching conventional-commit types
+          # Usage: section "Title" type1 type2 ...
+          # Matches: "- <type>(<scope>)?!: ..." per Conventional Commits spec
           section() {
             local TITLE="$1"; shift
+            local alts
+            alts=$(IFS='|'; echo "$*")
             local COMMITS
-            COMMITS=$(git log $RANGE --pretty=format:"- %s (%h)" -- | grep -E "^- ($*)" || true)
+            COMMITS=$(git log $RANGE --pretty=format:"- %s (%h)" -- | grep -E "^- (${alts})(\([^)]*\))?!?:" || true)
             if [ -n "$COMMITS" ]; then
               echo "### ${TITLE}"$'\n'"${COMMITS}"$'\n'
             fi
@@ -160,14 +164,14 @@ jobs:
           {
             echo "## What's Changed in v${{ steps.version.outputs.release }}"
             echo ""
-            section "🚀 New Features"          "feat(\|feat!("
-            section "🐛 Bug Fixes"             "fix(\|fix!("
-            section "⚡ Performance"           "perf(\|perf!("
-            section "♻️  Refactoring"          "refactor(\|refactor!("
-            section "🧪 Tests"                 "test(\|test!("
-            section "📦 Build & Dependencies"  "build(\|deps(\|deps-dev("
-            section "🔧 CI / Chore"            "ci(\|chore("
-            section "📝 Documentation"         "docs("
+            section "🚀 New Features"          feat
+            section "🐛 Bug Fixes"             fix
+            section "⚡ Performance"           perf
+            section "♻️  Refactoring"          refactor
+            section "🧪 Tests"                 test
+            section "📦 Build & Dependencies"  build deps deps-dev
+            section "🔧 CI / Chore"            ci chore
+            section "📝 Documentation"         docs
 
             # Breaking changes block
             BREAKING=$(git log $RANGE --pretty=format:"%s%n%b" -- | grep -E "^BREAKING CHANGE:" || true)
