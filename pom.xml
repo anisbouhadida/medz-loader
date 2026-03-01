@@ -10,7 +10,7 @@
     </parent>
     <groupId>dz.anisbouhadida</groupId>
     <artifactId>medz-loader</artifactId>
-    <version>0.0.1</version>
+    <version>0.0.2-SNAPSHOT</version>
     <name>medz-loader</name>
     <description>medz-loader</description>
 
