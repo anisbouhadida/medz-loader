@@ -1,0 +1,215 @@
+name: Release
+
+on:
+  push:
+    branches:
+      - "release/**"   # e.g. release/1.2.0  →  version = 1.2.0
+
+permissions:
+  contents: write   # needed to push commits, tags and create GitHub Release
+
+jobs:
+  release:
+    name: Maven Release & GitHub Release
+    runs-on: ubuntu-latest
+    environment: production
+
+    # ── PostgreSQL service container ─────────────────────────────────────────
+    services:
+      postgres:
+        image: postgres:17-alpine
+        env:
+          POSTGRES_DB: medz_test
+          POSTGRES_USER: medz
+          POSTGRES_PASSWORD: medz
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd "pg_isready -U medz -d medz_test"
+          --health-interval 10s
+          --health-timeout 5s
+          --health-retries 5
+
+    steps:
+      # ── Derive version from branch name (release/1.2.0 → 1.2.0) ─────────────
+      - name: Extract release version
+        id: version
+        run: |
+          BRANCH="${{ github.ref_name }}"
+          VERSION="${BRANCH#release/}"
+          # Validate strict semver <major>.<minor>.<patch> (numeric segments only)
+          if ! [[ "$VERSION" =~ ^[0-9]+\.[0-9]+\.[0-9]+$ ]]; then
+            echo "::error::Branch '${BRANCH}' does not match the required format 'release/<major>.<minor>.<patch>' (e.g. release/1.2.0). Pre-release suffixes (e.g. -rc1) and partial versions (e.g. 1.2) are not supported."
+            exit 1
+          fi
+          echo "release=${VERSION}" >> "$GITHUB_OUTPUT"
+          # Compute next SNAPSHOT: bump patch digit  e.g. 1.2.0 → 1.2.1-SNAPSHOT
+          IFS='.' read -r MAJOR MINOR PATCH <<< "$VERSION"
+          echo "next_snapshot=${MAJOR}.${MINOR}.$((PATCH + 1))-SNAPSHOT" >> "$GITHUB_OUTPUT"
+
+      # ── Checkout (full history for git operations) ────────────────────────────
+      - name: Checkout source
+        uses: actions/checkout@v6
+        with:
+          fetch-depth: 0
+          token: ${{ secrets.GITHUB_TOKEN }}
+
+      # ── Configure git identity ────────────────────────────────────────────────
+      - name: Configure Git
+        run: |
+          git config user.name  "github-actions[bot]"
+          git config user.email "github-actions[bot]@users.noreply.github.com"
+
+      # ── Java ──────────────────────────────────────────────────────────────────
+      - name: Set up JDK 25
+        uses: actions/setup-java@v5
+        with:
+          java-version: "25"
+          distribution: "temurin"
+          cache: "maven"
+          cache-dependency-path: "**/pom.xml"
+
+      # ── Bump POM to release version ───────────────────────────────────────────
+      - name: Set release version in POM
+        run: |
+          ./mvnw --batch-mode versions:set \
+            -DnewVersion=${{ steps.version.outputs.release }} \
+            -DgenerateBackupPoms=false
+
+      # ── Full build + tests ────────────────────────────────────────────────────
+      - name: Build & verify
+        env:
+          SPRING_PROFILES_ACTIVE: test
+        run: ./mvnw --batch-mode verify
+
+      # ── Commit the bumped POM ─────────────────────────────────────────────────
+      - name: Commit release version
+        run: |
+          git add pom.xml
+          git commit -m "chore(release): bump version to ${{ steps.version.outputs.release }}"
+
+      # ── Tag ───────────────────────────────────────────────────────────────────
+      - name: Create release tag
+        run: |
+          git tag -a "v${{ steps.version.outputs.release }}" \
+            -m "Release v${{ steps.version.outputs.release }}"
+
+      # ── Merge release branch back into main ───────────────────────────────────
+      - name: Merge into main
+        run: |
+          git fetch origin main
+          git checkout main
+          git merge --no-ff "${{ github.ref_name }}" \
+            -m "chore(release): merge ${{ github.ref_name }} into main"
+
+      # ── Bump POM to next snapshot ─────────────────────────────────────────────
+      - name: Set next snapshot version in POM
+        run: |
+          ./mvnw --batch-mode versions:set \
+            -DnewVersion=${{ steps.version.outputs.next_snapshot }} \
+            -DgenerateBackupPoms=false
+
+      # ── Commit the next snapshot POM ─────────────────────────────────────────
+      - name: Commit next snapshot version
+        run: |
+          git add pom.xml
+          git commit -m "chore(release): prepare for next development iteration ${{ steps.version.outputs.next_snapshot }}"
+
+      # ── Push release tag only (release branch is ephemeral; main pushed later) ─
+      - name: Push release tag
+        run: git push origin "v${{ steps.version.outputs.release }}"
+
+      # ── Upload test report ────────────────────────────────────────────────────
+      - name: Upload Surefire reports
+        if: always()
+        uses: actions/upload-artifact@v6
+        with:
+          name: surefire-reports-${{ steps.version.outputs.release }}
+          path: target/surefire-reports/
+          retention-days: 30
+
+      # ── Generate release notes from conventional commits ──────────────────────
+      - name: Generate release notes
+        id: release_notes
+        run: |
+          # Fetch the previous tag to compute the commit range.
+          # Use sed -n '2p' to skip the just-created release tag and get the true previous tag.
+          PREV_TAG=$(git tag --sort=-version:refname | grep -E '^v[0-9]+\.[0-9]+\.[0-9]+$' | sed -n '2p')
+          CURRENT_TAG="v${{ steps.version.outputs.release }}"
+
+          if [ -z "$PREV_TAG" ]; then
+            RANGE="$CURRENT_TAG"
+            RANGE_LABEL="since the beginning"
+          else
+            RANGE="${PREV_TAG}..${CURRENT_TAG}"
+            RANGE_LABEL="since ${PREV_TAG}"
+          fi
+
+          echo "Generating notes for range: $RANGE_LABEL"
+
+          # Helper: extract commits matching conventional-commit types
+          # Usage: section "Title" type1 type2 ...
+          # Matches: "- <type>(<scope>)?!: ..." per Conventional Commits spec
+          section() {
+            local TITLE="$1"; shift
+            local alts
+            alts=$(IFS='|'; echo "$*")
+            local COMMITS
+            COMMITS=$(git log $RANGE --pretty=format:"- %s (%h)" -- | grep -E "^- (${alts})(\([^)]*\))?!?:" || true)
+            if [ -n "$COMMITS" ]; then
+              echo "### ${TITLE}"$'\n'"${COMMITS}"$'\n'
+            fi
+          }
+
+          {
+            echo "## What's Changed in v${{ steps.version.outputs.release }}"
+            echo ""
+            section "🚀 New Features"          feat
+            section "🐛 Bug Fixes"             fix
+            section "⚡ Performance"           perf
+            section "♻️  Refactoring"          refactor
+            section "🧪 Tests"                 test
+            section "📦 Build & Dependencies"  build deps deps-dev
+            section "🔧 CI / Chore"            ci chore
+            section "📝 Documentation"         docs
+
+            # Breaking changes block
+            BREAKING=$(git log $RANGE --pretty=format:"%s%n%b" -- | grep -E "^BREAKING CHANGE:" || true)
+            if [ -n "$BREAKING" ]; then
+              echo "### ⚠️ Breaking Changes"
+              echo "$BREAKING" | sed 's/^BREAKING CHANGE: /- /'
+              echo ""
+            fi
+
+            # Full commit list as fallback / appendix
+            echo "### 📋 All Commits"
+            git log $RANGE --pretty=format:"- %s (%h) — @%an" --no-merges -- || true
+            echo ""
+          } > release-notes.md
+
+          # Escape multiline output for GITHUB_OUTPUT
+          {
+            echo 'body<<RELEASE_NOTES_EOF'
+            cat release-notes.md
+            echo 'RELEASE_NOTES_EOF'
+          } >> "$GITHUB_OUTPUT"
+
+      # ── Create GitHub Release with the JAR ───────────────────────────────────
+      - name: Create GitHub Release
+        uses: softprops/action-gh-release@v2
+        with:
+          tag_name: "v${{ steps.version.outputs.release }}"
+          name: "v${{ steps.version.outputs.release }}"
+          body: ${{ steps.release_notes.outputs.body }}
+          files: target/medz-loader-${{ steps.version.outputs.release }}.jar
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+
+      # ── Push main only after GitHub Release succeeds ──────────────────────────
+      - name: Push main
+        run: git push origin main
+
+
+
+
+
