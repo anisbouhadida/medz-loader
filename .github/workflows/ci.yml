@@ -1,0 +1,56 @@
+name: CI – Build & Package
+
+on:
+  push:
+    branches:
+      - main
+      - "feature/**"
+      - "fix/**"
+  pull_request:
+    branches:
+      - main
+
+concurrency:
+  group: ci-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  build:
+    name: Build & Test
+    runs-on: ubuntu-latest
+
+    steps:
+      # ── Checkout ──────────────────────────────────────────────────────────────
+      - name: Checkout source
+        uses: actions/checkout@v6
+
+      # ── Java ──────────────────────────────────────────────────────────────────
+      - name: Set up JDK 25
+        uses: actions/setup-java@v5
+        with:
+          java-version: "25"
+          distribution: "temurin"
+          cache: "maven"
+          cache-dependency-path: "**/pom.xml"
+
+      # ── Build & Test ──────────────────────────────────────────────────────────
+      - name: Build and run tests
+        run: ./mvnw --batch-mode verify
+
+      # ── Upload test report ────────────────────────────────────────────────────
+      - name: Upload Surefire reports
+        if: always()
+        uses: actions/upload-artifact@v6
+        with:
+          name: surefire-reports
+          path: target/surefire-reports/
+          retention-days: 14
+
+      # ── Upload fat JAR ────────────────────────────────────────────────────────
+      - name: Upload application JAR
+        uses: actions/upload-artifact@v6
+        with:
+          name: medz-loader-jar
+          path: target/medz-loader-*.jar
+          retention-days: 14
+
