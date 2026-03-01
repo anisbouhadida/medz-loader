@@ -37,6 +37,11 @@ jobs:
         run: |
           BRANCH="${{ github.ref_name }}"
           VERSION="${BRANCH#release/}"
+          # Validate strict semver <major>.<minor>.<patch> (numeric segments only)
+          if ! [[ "$VERSION" =~ ^[0-9]+\.[0-9]+\.[0-9]+$ ]]; then
+            echo "::error::Branch '${BRANCH}' does not match the required format 'release/<major>.<minor>.<patch>' (e.g. release/1.2.0). Pre-release suffixes (e.g. -rc1) and partial versions (e.g. 1.2) are not supported."
+            exit 1
+          fi
           echo "release=${VERSION}" >> "$GITHUB_OUTPUT"
           # Compute next SNAPSHOT: bump patch digit  e.g. 1.2.0 → 1.2.1-SNAPSHOT
           IFS='.' read -r MAJOR MINOR PATCH <<< "$VERSION"
