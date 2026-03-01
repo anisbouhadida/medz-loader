@@ -14,6 +14,22 @@ jobs:
     runs-on: ubuntu-latest
     environment: production
 
+    # ── PostgreSQL service container ─────────────────────────────────────────
+    services:
+      postgres:
+        image: postgres:17-alpine
+        env:
+          POSTGRES_DB: medz_test
+          POSTGRES_USER: medz
+          POSTGRES_PASSWORD: medz
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd "pg_isready -U medz -d medz_test"
+          --health-interval 10s
+          --health-timeout 5s
+          --health-retries 5
+
     steps:
       # ── Derive version from branch name (release/1.2.0 → 1.2.0) ─────────────
       - name: Extract release version
@@ -57,6 +73,8 @@ jobs:
 
       # ── Full build + tests ────────────────────────────────────────────────────
       - name: Build & verify
+        env:
+          SPRING_PROFILES_ACTIVE: test
         run: ./mvnw --batch-mode verify
 
       # ── Commit the bumped POM ─────────────────────────────────────────────────
