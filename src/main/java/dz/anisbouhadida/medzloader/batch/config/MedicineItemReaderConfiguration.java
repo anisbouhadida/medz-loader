@@ -4,6 +4,8 @@ import dz.anisbouhadida.medzloader.batch.dto.MedicineLine;
 import dz.anisbouhadida.medzloader.batch.reader.FileAwareMedicineItemReader;
 import dz.anisbouhadida.medzloader.batch.reader.MedicineItemReaderClassifier;
 import dz.anisbouhadida.medzloader.batch.reader.MedicineItemReaderFactory;
+import dz.anisbouhadida.medzloader.config.MedzLoaderProperties;
+import lombok.RequiredArgsConstructor;
 import org.springframework.batch.infrastructure.item.file.FlatFileItemReader;
 import org.springframework.batch.infrastructure.item.file.MultiResourceItemReader;
 import org.springframework.batch.infrastructure.item.file.ResourceAwareItemReaderItemStream;
@@ -13,29 +15,44 @@ import org.springframework.context.annotation.Configuration;
 import org.springframework.core.io.support.PathMatchingResourcePatternResolver;
 
 import java.io.IOException;
+import java.nio.file.Path;
 
 /// Spring configuration that assembles the reader pipeline for medicine CSV files.
 ///
 /// It wires together a [MultiResourceItemReader] that scans all CSV files under
-/// `src/main/resources/input/` and delegates the actual reading to a
-/// [FileAwareMedicineItemReader], which in turn selects the correct column
-/// layout via a [MedicineItemReaderClassifier].
+/// the directory configured by the `medz.loader.input-dir` application property
+/// and delegates the actual reading to a [FileAwareMedicineItemReader], which in
+/// turn selects the correct column layout via a [MedicineItemReaderClassifier].
+///
+/// The `file:` prefix and the `/**/*.csv` glob are appended automatically;
+/// the user only needs to supply the base directory path.
 ///
 /// @author Anis Bouhadida
 /// @since 0.0.1
 @Configuration
+@RequiredArgsConstructor
 public class MedicineItemReaderConfiguration {
 
+    /// Ant-style resource pattern used to discover all CSV files under the configured
+    /// input directory. The `%s` placeholder is replaced at runtime by the normalized
+    /// directory path supplied via `medz.loader.input-dir`.
+    private static final String CSV_PATTERN = "file:%s/**/*.csv";
+
+    /// Typed configuration properties bound to the `medz.loader` namespace,
+    /// injected by Lombok's `@RequiredArgsConstructor`.
+    private final MedzLoaderProperties properties;
+
     /// Creates a [MultiResourceItemReader] that discovers every `*.csv` file
-    /// under `src/main/resources/input/` and feeds them one by one to the
-    /// [#fileAwareMedicineItemReader()] delegate.
+    /// under the directory defined by `medz.loader.input-dir` and feeds
+    /// them one by one to the [#fileAwareMedicineItemReader()] delegate.
     ///
     /// @return a multi-resource reader spanning all input CSV files
     /// @throws IOException if the resource pattern cannot be resolved
     @Bean
     public MultiResourceItemReader<MedicineLine> multiCsvItemReader() throws IOException {
+        var pattern = CSV_PATTERN.formatted(Path.of(properties.inputDir()));
         var resolver = new PathMatchingResourcePatternResolver();
-        var resources = resolver.getResources("file:src/main/resources/input/**/*.csv");
+        var resources = resolver.getResources(pattern);
 
         return new MultiResourceItemReaderBuilder<MedicineLine>()
                 .name("multiCsvItemReader")
