@@ -17,6 +17,9 @@ import org.springframework.transaction.PlatformTransactionManager;
 /// The step reads [MedicineLine] records from CSV files, processes them into
 /// [MedicineEvent] domain objects, and writes the results using the provided
 /// [ItemWriter].
+///
+/// @author Anis Bouhadida
+/// @since 0.0.1
 @Configuration
 public class MedzLoaderStepConfiguration {
 

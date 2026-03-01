@@ -25,6 +25,8 @@ import java.util.List;
 /// - a classifier composite processor that delegates transformation to specific processors
 ///   depending on the concrete type of `MedicineLine`.
 ///
+/// @author Anis Bouhadida
+/// @since 0.0.1
 @Configuration
 public class MedicineItemProcessorConfiguration {
 

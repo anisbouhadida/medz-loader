@@ -11,21 +11,25 @@ import java.time.LocalDateTime;
 /// registration data of a medicine, including its identifiers, composition,
 /// pharmaceutical form, and administrative information.
 ///
-/// @param registrationNumber Official registration number of the medicine
-/// @param code Unique code of the medicine
-/// @param internationalCommonDenomination International Common Denomination (INN)
-/// @param brandName Commercial brand name
-/// @param form Pharmaceutical form (tablet, solution, etc.)
-/// @param dosage Dosage of the medicine
-/// @param packaging Product packaging
-/// @param list Classification list
-/// @param p1 P1 data
-/// @param p2 P2 data
-/// @param laboratoryHolder Laboratory holding the registration decision
-/// @param laboratoryCountry Country of the laboratory holder
-/// @param initialRegistrationDate Initial registration date
-/// @param type Type of medicine
-/// @param origin Current origin of the medicine (e.g., national, imported)
+/// @param registrationNumber        official registration number of the medicine
+/// @param code                      unique code of the medicine
+/// @param internationalCommonDenomination international Common Denomination (INN)
+/// @param brandName                 commercial brand name
+/// @param form                      pharmaceutical form (tablet, solution, etc.)
+/// @param dosage                    dosage of the medicine
+/// @param packaging                 product packaging
+/// @param list                      classification list
+/// @param p1                        first price indicator
+/// @param p2                        second price indicator
+/// @param laboratoryHolder          laboratory holding the registration decision
+/// @param laboratoryCountry         country of the laboratory holder
+/// @param initialRegistrationDate   initial registration date
+/// @param type                      type of medicine
+/// @param origin                    current origin of the medicine (e.g. national, imported)
+/// @param version                   optimistic-locking version counter
+///
+/// @author Anis Bouhadida
+/// @since 0.0.1
 public record Medicine(
         String registrationNumber,
         String code,

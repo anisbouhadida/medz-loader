@@ -17,12 +17,32 @@ import org.mapstruct.Named;
 import java.time.LocalDateTime;
 import java.time.format.DateTimeFormatter;
 
+/// MapStruct mapper that converts [MedicineLine] DTOs into domain model objects.
+///
+/// Handles the three CSV formats read by the batch pipeline:
+/// - [NomenclatureLine] → [NomenclatureEvent]
+/// - [WithdrawalLine]   → [WithdrawalEvent]
+/// - [NonRenewalLine]   → [NonRenewalEvent]
+///
+/// All three share the [#toMedicine(MedicineLine)] base mapping, which is
+/// referenced by the event-level mappings via the `toMedicine` qualifier.
+///
+/// @author Anis Bouhadida
+/// @since 0.0.1
 @Mapper
 public interface MedicineLineMapper {
 
+    /// Date-time formatter for the raw `yyyy-MM-dd HH:mm:ss` strings found in the CSV files.
     DateTimeFormatter DATE_FORMATTER =
             DateTimeFormatter.ofPattern("yyyy-MM-dd HH:mm:ss");
 
+    /// Converts a [MedicineLine] into a [Medicine] domain object.
+    ///
+    /// All field mappings are expressed explicitly via `@Mapping` expressions so
+    /// that the generated code does not rely on name-based convention matching.
+    ///
+    /// @param line the source DTO (any [MedicineLine] implementation)
+    /// @return a fully populated [Medicine] record
     @Named("toMedicine")
     @Mapping(target = "registrationNumber", expression = "java(line.registrationNumber())")
     @Mapping(target = "code", expression = "java(line.code())")
@@ -41,20 +61,44 @@ public interface MedicineLineMapper {
     @Mapping(target = "origin", expression = "java(toMedicineOrigin(line.status()))")
     Medicine toMedicine(MedicineLine line);
 
+    /// Converts a [NomenclatureLine] into a [NomenclatureEvent].
+    ///
+    /// The nested [Medicine] is built using the [#toMedicine(MedicineLine)] qualified mapping.
+    ///
+    /// @param line the nomenclature DTO to convert
+    /// @return a [NomenclatureEvent] wrapping the mapped medicine and event fields
     @Mapping(target = "medicine", source = ".", qualifiedByName = "toMedicine")
     @Mapping(target = "observations", source = "obs")
     NomenclatureEvent toMedicineEvent(NomenclatureLine line);
 
+    /// Converts a [WithdrawalLine] into a [WithdrawalEvent].
+    ///
+    /// The nested [Medicine] is built using the [#toMedicine(MedicineLine)] qualified mapping.
+    ///
+    /// @param line the withdrawal DTO to convert
+    /// @return a [WithdrawalEvent] wrapping the mapped medicine and withdrawal fields
     @Mapping(target = "medicine", source = ".", qualifiedByName = "toMedicine")
     WithdrawalEvent toMedicineEvent(WithdrawalLine line);
 
+    /// Converts a [NonRenewalLine] into a [NonRenewalEvent].
+    ///
+    /// The nested [Medicine] is built using the [#toMedicine(MedicineLine)] qualified mapping.
+    ///
+    /// @param line the non-renewal DTO to convert
+    /// @return a [NonRenewalEvent] wrapping the mapped medicine and non-renewal fields
     @Mapping(target = "medicine", source = ".", qualifiedByName = "toMedicine")
     @Mapping(target = "observations", source = "obs")
     NonRenewalEvent toMedicineEvent(NonRenewalLine line);
 
+    /// Parses a raw date string in `yyyy-MM-dd HH:mm:ss` format into a [LocalDateTime].
+    ///
+    /// Returns `null` if the string is `null`, blank, or cannot be parsed.
+    ///
+    /// @param dateStr the raw date string from the CSV file — may be `null` or blank
+    /// @return the parsed [LocalDateTime], or `null` if the input is absent or malformed
+    /// @deprecated will be replaced by a dedicated converter once the format is stable
     @Deprecated(forRemoval = true)
     default LocalDateTime parseDate(String dateStr) {
-
         if (dateStr == null || dateStr.isBlank()) {
             return null;
         }
@@ -65,6 +109,13 @@ public interface MedicineLineMapper {
         }
     }
 
+    /// Converts the raw `type` string from a CSV row into a [MedicineType] enum constant.
+    ///
+    /// Accepted values: `GE`, `G` → [MedicineType#GE]; `RE`, `R` → [MedicineType#RE];
+    /// `BIO` → [MedicineType#BIO]. Any other value (including blank) returns `null`.
+    ///
+    /// @param typeStr the raw type string from the CSV file
+    /// @return the matching [MedicineType], or `null` if unrecognised
     default MedicineType toMedicineType(String typeStr) {
         return switch (typeStr) {
             case "GE", "G" -> MedicineType.GE;
@@ -74,6 +125,13 @@ public interface MedicineLineMapper {
         };
     }
 
+    /// Converts the raw `status` string from a CSV row into a [MedicineOrigin] enum constant.
+    ///
+    /// Accepted values: `F` → [MedicineOrigin#MANUFACTURED]; `I` → [MedicineOrigin#IMPORTED].
+    /// Any other value (including `i` or blank) returns `null`.
+    ///
+    /// @param statusStr the raw origin/status string from the CSV file
+    /// @return the matching [MedicineOrigin], or `null` if unrecognised
     default MedicineOrigin toMedicineOrigin(String statusStr) {
         return switch (statusStr) {
             case "F" -> MedicineOrigin.MANUFACTURED;

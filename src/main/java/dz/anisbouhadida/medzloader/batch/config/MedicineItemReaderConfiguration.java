@@ -20,6 +20,9 @@ import java.io.IOException;
 /// `src/main/resources/input/` and delegates the actual reading to a
 /// [FileAwareMedicineItemReader], which in turn selects the correct column
 /// layout via a [MedicineItemReaderClassifier].
+///
+/// @author Anis Bouhadida
+/// @since 0.0.1
 @Configuration
 public class MedicineItemReaderConfiguration {
 

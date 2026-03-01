@@ -12,6 +12,9 @@ import org.springframework.context.annotation.Configuration;
 ///
 /// The job consists of a single [Step] that reads, processes, and writes
 /// medicine records from CSV files into the target data store.
+///
+/// @author Anis Bouhadida
+/// @since 0.0.1
 @Configuration
 public class MedzLoaderJobConfiguration {
 
