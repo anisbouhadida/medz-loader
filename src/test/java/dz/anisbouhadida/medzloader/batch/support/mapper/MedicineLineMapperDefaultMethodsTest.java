@@ -126,6 +126,12 @@ class MedicineLineMapperDefaultMethodsTest {
         void toMedicineType_should_returnNull_when_inputIsUnrecognised(String input) {
             assertThat(mapper.toMedicineType(input)).isNull();
         }
+
+        @Test
+        @DisplayName("should return null for null input")
+        void toMedicineType_should_returnNull_when_inputIsNull() {
+            assertThat(mapper.toMedicineType(null)).isNull();
+        }
     }
 
     @Nested
@@ -148,6 +154,12 @@ class MedicineLineMapperDefaultMethodsTest {
         @ValueSource(strings = {"", "i", "f", "X", "UNKNOWN"})
         void toMedicineOrigin_should_returnNull_when_inputIsUnrecognised(String input) {
             assertThat(mapper.toMedicineOrigin(input)).isNull();
+        }
+
+        @Test
+        @DisplayName("should return null for null input")
+        void toMedicineOrigin_should_returnNull_when_inputIsNull() {
+            assertThat(mapper.toMedicineOrigin(null)).isNull();
         }
     }
 }
