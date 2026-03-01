@@ -37,6 +37,11 @@ jobs:
         run: |
           BRANCH="${{ github.ref_name }}"
           VERSION="${BRANCH#release/}"
+          # Validate strict semver <major>.<minor>.<patch> (numeric segments only)
+          if ! [[ "$VERSION" =~ ^[0-9]+\.[0-9]+\.[0-9]+$ ]]; then
+            echo "::error::Branch '${BRANCH}' does not match the required format 'release/<major>.<minor>.<patch>' (e.g. release/1.2.0). Pre-release suffixes (e.g. -rc1) and partial versions (e.g. 1.2) are not supported."
+            exit 1
+          fi
           echo "release=${VERSION}" >> "$GITHUB_OUTPUT"
           # Compute next SNAPSHOT: bump patch digit  e.g. 1.2.0 → 1.2.1-SNAPSHOT
           IFS='.' read -r MAJOR MINOR PATCH <<< "$VERSION"
@@ -127,15 +132,16 @@ jobs:
       - name: Generate release notes
         id: release_notes
         run: |
-          # Fetch the previous tag to compute the commit range
-          PREV_TAG=$(git tag --sort=-version:refname | grep -E '^v[0-9]+\.[0-9]+\.[0-9]+$' | sed -n '1p')
-          CURRENT_SHA=$(git rev-parse HEAD)
+          # Fetch the previous tag to compute the commit range.
+          # Use sed -n '2p' to skip the just-created release tag and get the true previous tag.
+          PREV_TAG=$(git tag --sort=-version:refname | grep -E '^v[0-9]+\.[0-9]+\.[0-9]+$' | sed -n '2p')
+          CURRENT_TAG="v${{ steps.version.outputs.release }}"
 
           if [ -z "$PREV_TAG" ]; then
-            RANGE="$CURRENT_SHA"
+            RANGE="$CURRENT_TAG"
             RANGE_LABEL="since the beginning"
           else
-            RANGE="${PREV_TAG}..HEAD"
+            RANGE="${PREV_TAG}..${CURRENT_TAG}"
             RANGE_LABEL="since ${PREV_TAG}"
           fi
 
