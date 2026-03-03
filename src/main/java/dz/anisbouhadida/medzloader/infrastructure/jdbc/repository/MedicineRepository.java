@@ -21,7 +21,7 @@ public interface MedicineRepository {
   /// @param registrationNumber              the official registration number
   /// @param code                            the medicine code
   /// @param internationalCommonDenomination the International Common Denomination (INN / icd
-  // column)
+  /// column)
   /// @param brandName                       the commercial brand name
   /// @param laboratoryHolder                the laboratory holding the registration decision
   /// @return an [Optional] containing the stored `version` value,

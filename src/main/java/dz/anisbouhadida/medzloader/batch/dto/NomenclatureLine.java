@@ -13,7 +13,7 @@ import jakarta.validation.constraints.Positive;
 /// String-based fields (`type`, `origin`, `initialRegistrationDate`, `finalRegistrationDate`)
 /// are mapped to domain types at a later stage in the processor.
 /// Date fields are kept as raw strings because
-// [org.springframework.batch.infrastructure.item.file.mapping.RecordFieldSetMapper]
+/// [org.springframework.batch.infrastructure.item.file.mapping.RecordFieldSetMapper]
 /// enforces non-null conversion results, making it incompatible with blank date cells
 /// in the source CSV files.
 /// Common fields are defined in [MedicineLine].
@@ -23,12 +23,12 @@ import jakarta.validation.constraints.Positive;
 ///
 /// @param id                                   sequential row number in the source file
 /// @param registrationNumber                   official registration number (e.g. `035/01 A
-// 003/17/23`)
+/// 003/17/23`)
 /// @param code                                 alphanumeric medicine code (e.g. `01 A 003`)
 /// @param internationalCommonName              INN — International Non-proprietary Name
 /// @param brandName                            commercial brand name of the medicine
 /// @param form                                 pharmaceutical form (e.g. _COMPRIMÉ PELLICULÉ
-// SÉCABLE_) — may be blank
+/// SÉCABLE_) — may be blank
 /// @param dosage                               dosage strength (e.g. `10MG`) — may be blank
 /// @param packaging                            packaging description (e.g. `B/15`) — may be blank
 /// @param list                                 regulatory list (e.g. `LISTE II`) — may be blank
@@ -36,14 +36,14 @@ import jakarta.validation.constraints.Positive;
 /// @param p2                                   optional second price indicator
 /// @param obs                                  optional observation or remark
 /// @param registrationHolderLaboratory         name of the laboratory holding the registration
-// decision
+/// decision
 /// @param registrationHolderLaboratoryCountry  country of the registration holder laboratory
 /// @param initialRegistrationDate              date the registration was first granted as raw
-// string (`yyyy-MM-dd HH:mm:ss`) — may be blank
+/// string (`yyyy-MM-dd HH:mm:ss`) — may be blank
 /// @param finalRegistrationDate                date the registration expires as raw string — may be
-// blank
+/// blank
 /// @param type                                 medicine type as raw string (`GE`, `RE`, `BIO` or
-// blank)
+/// blank)
 /// @param status                               registration origin as raw string (`F`, `I`, `i`)
 /// @param stabilityDuration                    declared stability duration (e.g. `24 MOIS`)
 public record NomenclatureLine(

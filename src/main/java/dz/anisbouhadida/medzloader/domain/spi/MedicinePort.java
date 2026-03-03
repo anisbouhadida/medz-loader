@@ -18,7 +18,7 @@ public interface MedicinePort {
   /// @param brandName the commercial brand name to look up
   /// @param laboratoryHolder the laboratory holding the registration decision to look up
   /// @return the current optimistic-locking version of the medicine, or `0` if no matching row
-  // exists
+  /// exists
   int getMedicineVersionByRegistrationNumber(
       String registrationNumber,
       String code,

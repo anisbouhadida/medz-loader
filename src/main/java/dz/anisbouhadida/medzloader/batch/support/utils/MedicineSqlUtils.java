@@ -1,13 +1,14 @@
 package dz.anisbouhadida.medzloader.batch.support.utils;
 
 import dz.anisbouhadida.medzloader.domain.model.MedicineEvent;
-import java.io.IOException;
-import java.io.UncheckedIOException;
-import java.nio.charset.StandardCharsets;
 import lombok.AccessLevel;
 import lombok.NoArgsConstructor;
 import org.springframework.core.io.ClassPathResource;
 import org.springframework.jdbc.core.namedparam.MapSqlParameterSource;
+
+import java.io.IOException;
+import java.io.UncheckedIOException;
+import java.nio.charset.StandardCharsets;
 
 /// Reusable SQL helpers for [MedicineEvent] persistence.
 ///
@@ -27,7 +28,7 @@ public final class MedicineSqlUtils {
   /// event-specific parameters before passing the source to a reader/writer.
   ///
   /// @param event the [MedicineEvent] whose embedded
-  // [dz.anisbouhadida.medzloader.domain.model.Medicine] provides the key values
+  /// [dz.anisbouhadida.medzloader.domain.model.Medicine] provides the key values
   /// @return a [MapSqlParameterSource] containing `registrationNumber`, `code`,
   ///         `icd`, `brandName`, and `laboratoryHolder`
   public static MapSqlParameterSource compositeKeyParams(MedicineEvent event) {

@@ -3,7 +3,7 @@ package dz.anisbouhadida.medzloader.domain.model.enums;
 /// Classifies the type of [dz.anisbouhadida.medzloader.domain.model.MedicineEvent].
 ///
 /// This enum is used to distinguish between the different regulatory events that can affect a
-// medicine,
+/// medicine,
 /// such as being added to the nomenclature, withdrawn from the market, or not renewed upon expiry.
 ///
 /// @author Anis Bouhadida

@@ -11,12 +11,13 @@ import dz.anisbouhadida.medzloader.domain.model.NonRenewalEvent;
 import dz.anisbouhadida.medzloader.domain.model.WithdrawalEvent;
 import dz.anisbouhadida.medzloader.domain.model.enums.MedicineOrigin;
 import dz.anisbouhadida.medzloader.domain.model.enums.MedicineType;
-import java.time.LocalDateTime;
-import java.time.format.DateTimeFormatter;
 import org.mapstruct.Context;
 import org.mapstruct.Mapper;
 import org.mapstruct.Mapping;
 import org.mapstruct.Named;
+
+import java.time.LocalDateTime;
+import java.time.format.DateTimeFormatter;
 
 /// MapStruct mapper that converts [MedicineLine] DTOs into domain model objects.
 ///
@@ -129,7 +130,7 @@ public interface MedicineLineMapper {
   /// `BIO` → [MedicineType#BIO]. Any other value (including `null` or blank) returns `null`.
   ///
   /// @param typeStr the raw type string from the CSV file — may be `null`
-  /// @return the matching [MedicineType], or `null` if unrecognised or input is `null`
+  /// @return the matching [MedicineType], or `null` if unrecognized or input is `null`
   default MedicineType toMedicineType(String typeStr) {
     if (typeStr == null) {
       return null;
@@ -144,18 +145,18 @@ public interface MedicineLineMapper {
 
   /// Converts the raw `status` string from a CSV row into a [MedicineOrigin] enum constant.
   ///
-  /// Accepted values: `F` → [MedicineOrigin#MANUFACTURED]; `I` → [MedicineOrigin#IMPORTED].
-  /// Any other value (including `null`, `i` or blank) returns `null`.
+  /// Accepted values: `F` → [MedicineOrigin#MANUFACTURED]; `I` or `i` → [MedicineOrigin#IMPORTED].
+  /// Any other value (including `null` or blank) returns `null`.
   ///
   /// @param statusStr the raw origin/status string from the CSV file — may be `null`
-  /// @return the matching [MedicineOrigin], or `null` if unrecognised or input is `null`
+  /// @return the matching [MedicineOrigin], or `null` if unrecognized or input is `null`
   default MedicineOrigin toMedicineOrigin(String statusStr) {
     if (statusStr == null) {
       return null;
     }
     return switch (statusStr) {
       case "F" -> MedicineOrigin.MANUFACTURED;
-      case "I" -> MedicineOrigin.IMPORTED;
+      case "I","i" -> MedicineOrigin.IMPORTED;
       default -> null;
     };
   }

@@ -5,15 +5,17 @@ import dz.anisbouhadida.medzloader.batch.reader.FileAwareMedicineItemReader;
 import dz.anisbouhadida.medzloader.batch.reader.MedicineItemReaderClassifier;
 import dz.anisbouhadida.medzloader.batch.reader.MedicineItemReaderFactory;
 import dz.anisbouhadida.medzloader.config.MedzLoaderProperties;
-import java.io.IOException;
-import java.nio.file.Path;
 import lombok.RequiredArgsConstructor;
+import org.springframework.batch.infrastructure.item.file.FlatFileItemReader;
 import org.springframework.batch.infrastructure.item.file.MultiResourceItemReader;
 import org.springframework.batch.infrastructure.item.file.ResourceAwareItemReaderItemStream;
 import org.springframework.batch.infrastructure.item.file.builder.MultiResourceItemReaderBuilder;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
 import org.springframework.core.io.support.PathMatchingResourcePatternResolver;
+
+import java.io.IOException;
+import java.nio.file.Path;
 
 /// Spring configuration that assembles the reader pipeline for medicine CSV files.
 ///
@@ -57,7 +59,7 @@ public class MedicineItemReaderConfiguration {
   /// them one by one to the [#fileAwareMedicineItemReader()] delegate.
   ///
   /// @param fileAwareMedicineItemReader the resource-aware delegate reader that processes each
-  // individual CSV file
+  /// individual CSV file
   /// @return a multi-resource reader spanning all input CSV files
   /// @throws IOException if the resource pattern cannot be resolved
   @Bean
@@ -82,7 +84,7 @@ public class MedicineItemReaderConfiguration {
   /// by consulting the [MedicineItemReaderClassifier].
   ///
   /// @param medicineItemReaderClassifier the classifier that maps a CSV filename to its
-  // corresponding flat-file reader
+  /// corresponding flat-file reader
   /// @return a resource-aware item reader that routes to the right delegate
   @Bean
   protected ResourceAwareItemReaderItemStream<MedicineLine> fileAwareMedicineItemReader(

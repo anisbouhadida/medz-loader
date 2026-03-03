@@ -31,7 +31,7 @@ public class MedzLoaderStepConfiguration {
   /// @param transactionManager  the transaction manager governing chunk boundaries
   /// @param multiCsvItemReader          the reader supplying [MedicineLine] records
   /// @param medicineItemProcessor       the processor transforming [MedicineLine] to
-  // [MedicineEvent]
+  /// [MedicineEvent]
   /// @param medicineCompositeItemWriter          the writer persisting [MedicineEvent] objects
   /// @return a fully configured batch step
   @Bean
