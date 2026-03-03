@@ -96,7 +96,7 @@ public class MedicineItemReaderConfiguration {
   /// CSV filename to its corresponding [FlatFileItemReader].
   ///
   /// @param medicineItemReaderFactory the factory used to build pre-configured flat-file readers
-  // for each CSV format
+  /// for each CSV format
   /// @return the classifier instance
   @Bean
   protected MedicineItemReaderClassifier medicineItemReaderClassifier(

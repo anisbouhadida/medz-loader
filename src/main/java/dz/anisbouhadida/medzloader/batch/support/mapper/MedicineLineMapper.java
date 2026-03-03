@@ -156,7 +156,7 @@ public interface MedicineLineMapper {
     }
     return switch (statusStr) {
       case "F" -> MedicineOrigin.MANUFACTURED;
-      case "I","i" -> MedicineOrigin.IMPORTED;
+      case "I", "i" -> MedicineOrigin.IMPORTED;
       default -> null;
     };
   }

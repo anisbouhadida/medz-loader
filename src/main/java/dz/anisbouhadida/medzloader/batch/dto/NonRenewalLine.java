@@ -11,7 +11,7 @@ import jakarta.validation.constraints.Positive;
 ///
 /// This record is intentionally kept isolated from the domain model.
 /// Date fields are kept as raw strings because
-///[org.springframework.batch.infrastructure.item.file.mapping.RecordFieldSetMapper]
+/// [org.springframework.batch.infrastructure.item.file.mapping.RecordFieldSetMapper]
 /// enforces non-null conversion results, making it incompatible with blank date cells
 /// in the source CSV files. String-based fields are mapped to domain types in the processor.
 /// Common fields are defined in [MedicineLine].
@@ -21,25 +21,25 @@ import jakarta.validation.constraints.Positive;
 ///
 /// @param id                                   sequential row number in the source file
 /// @param registrationNumber                   official registration number (e.g. `027/01 A
-///004/97`) — may be blank (1 row)
+/// 004/97`) — may be blank (1 row)
 /// @param code                                 alphanumeric medicine code (e.g. `01 A 004`)
 /// @param internationalCommonName              INN — International Non-proprietary Name
 /// @param brandName                            commercial brand name of the medicine
 /// @param form                                 pharmaceutical form (e.g. _SOL.INJ._, _SIROP_)
 /// @param dosage                               dosage strength (e.g. `5MG/ML`) — may be blank
 /// @param packaging                            packaging description (e.g. `B/05 AMP. DE 1ML`) —
-///may be blank
+/// may be blank
 /// @param list                                 regulatory list (e.g. `LISTE II`) — may be blank
 /// @param p1                                   optional first price indicator
 /// @param p2                                   optional second price indicator
 /// @param obs                                  optional observation or remark
 /// @param registrationHolderLaboratory         name of the laboratory holding the registration
-///decision
+/// decision
 /// @param registrationHolderLaboratoryCountry  country of the registration holder laboratory
 /// @param initialRegistrationDate              date the registration was first granted as raw
-///string — may be blank
+/// string — may be blank
 /// @param finalRegistrationDate                date the registration expired as raw string — may be
-///blank
+/// blank
 /// @param type                                 medicine type as raw string (`GE`, `RE` or blank)
 /// @param status                               registration origin as raw string (`F`, `I`, `i`)
 public record NonRenewalLine(

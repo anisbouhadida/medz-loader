@@ -1,16 +1,17 @@
 package dz.anisbouhadida.medzloader.batch.support.mapper;
 
-import static org.assertj.core.api.Assertions.assertThat;
-
 import dz.anisbouhadida.medzloader.domain.model.enums.MedicineOrigin;
 import dz.anisbouhadida.medzloader.domain.model.enums.MedicineType;
-import java.time.LocalDateTime;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Nested;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.params.ParameterizedTest;
 import org.junit.jupiter.params.provider.ValueSource;
+
+import java.time.LocalDateTime;
+
+import static org.assertj.core.api.Assertions.assertThat;
 
 /// Note: In these tests, we intentionally do not use the MapStruct-generated implementation.
 /// Instead, we create an anonymous subclass of the interface to exercise the default methods
@@ -154,14 +155,14 @@ class MedicineLineMapperDefaultMethodsTest {
       assertThat(mapper.toMedicineOrigin("F")).isEqualTo(MedicineOrigin.MANUFACTURED);
     }
 
-    @Test
-    @DisplayName("should return IMPORTED for input \"I\"")
-    void toMedicineOrigin_should_returnImported_when_inputIsI() {
-      assertThat(mapper.toMedicineOrigin("I")).isEqualTo(MedicineOrigin.IMPORTED);
+    @ParameterizedTest(name = "should return IMPORTED for input \"{0}\"")
+    @ValueSource(strings = {"I", "i"})
+    void toMedicineOrigin_should_returnImported_when_inputIsI(String input) {
+      assertThat(mapper.toMedicineOrigin(input)).isEqualTo(MedicineOrigin.IMPORTED);
     }
 
     @ParameterizedTest(name = "should return null for unrecognised input \"{0}\"")
-    @ValueSource(strings = {"", "i", "f", "X", "UNKNOWN"})
+    @ValueSource(strings = {"", "f", "X", "UNKNOWN"})
     void toMedicineOrigin_should_returnNull_when_inputIsUnrecognised(String input) {
       assertThat(mapper.toMedicineOrigin(input)).isNull();
     }
