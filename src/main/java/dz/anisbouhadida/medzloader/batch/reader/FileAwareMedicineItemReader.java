@@ -1,6 +1,7 @@
 package dz.anisbouhadida.medzloader.batch.reader;
 
 import dz.anisbouhadida.medzloader.batch.dto.MedicineLine;
+import java.util.Objects;
 import lombok.RequiredArgsConstructor;
 import org.jspecify.annotations.NonNull;
 import org.jspecify.annotations.Nullable;
@@ -9,8 +10,6 @@ import org.springframework.batch.infrastructure.item.ItemStreamException;
 import org.springframework.batch.infrastructure.item.file.FlatFileItemReader;
 import org.springframework.batch.infrastructure.item.file.ResourceAwareItemReaderItemStream;
 import org.springframework.core.io.Resource;
-
-import java.util.Objects;
 
 /// A resource-aware [ItemReader][org.springframework.batch.infrastructure.item.ItemReader]
 /// that dynamically selects the correct [FlatFileItemReader] delegate based on the
@@ -22,7 +21,8 @@ import java.util.Objects;
 ///
 /// This class implements [ResourceAwareItemReaderItemStream] so it can be used
 /// with a
-/// [MultiResourceItemReader][org.springframework.batch.infrastructure.item.file.MultiResourceItemReader].
+///
+// [MultiResourceItemReader][org.springframework.batch.infrastructure.item.file.MultiResourceItemReader].
 @RequiredArgsConstructor
 public class FileAwareMedicineItemReader
     implements ResourceAwareItemReaderItemStream<MedicineLine> {

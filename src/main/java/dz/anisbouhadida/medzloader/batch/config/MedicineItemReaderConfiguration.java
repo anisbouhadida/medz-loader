@@ -5,17 +5,15 @@ import dz.anisbouhadida.medzloader.batch.reader.FileAwareMedicineItemReader;
 import dz.anisbouhadida.medzloader.batch.reader.MedicineItemReaderClassifier;
 import dz.anisbouhadida.medzloader.batch.reader.MedicineItemReaderFactory;
 import dz.anisbouhadida.medzloader.config.MedzLoaderProperties;
+import java.io.IOException;
+import java.nio.file.Path;
 import lombok.RequiredArgsConstructor;
-import org.springframework.batch.infrastructure.item.file.FlatFileItemReader;
 import org.springframework.batch.infrastructure.item.file.MultiResourceItemReader;
 import org.springframework.batch.infrastructure.item.file.ResourceAwareItemReaderItemStream;
 import org.springframework.batch.infrastructure.item.file.builder.MultiResourceItemReaderBuilder;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
 import org.springframework.core.io.support.PathMatchingResourcePatternResolver;
-
-import java.io.IOException;
-import java.nio.file.Path;
 
 /// Spring configuration that assembles the reader pipeline for medicine CSV files.
 ///

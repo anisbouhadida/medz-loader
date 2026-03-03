@@ -1,14 +1,13 @@
 package dz.anisbouhadida.medzloader.batch.support.utils;
 
 import dz.anisbouhadida.medzloader.domain.model.MedicineEvent;
+import java.io.IOException;
+import java.io.UncheckedIOException;
+import java.nio.charset.StandardCharsets;
 import lombok.AccessLevel;
 import lombok.NoArgsConstructor;
 import org.springframework.core.io.ClassPathResource;
 import org.springframework.jdbc.core.namedparam.MapSqlParameterSource;
-
-import java.io.IOException;
-import java.io.UncheckedIOException;
-import java.nio.charset.StandardCharsets;
 
 /// Reusable SQL helpers for [MedicineEvent] persistence.
 ///
