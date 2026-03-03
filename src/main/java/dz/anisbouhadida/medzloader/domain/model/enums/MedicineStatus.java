@@ -9,10 +9,10 @@ package dz.anisbouhadida.medzloader.domain.model.enums;
 /// @author Anis Bouhadida
 /// @since 0.0.1
 public enum MedicineStatus {
-    /// The medicine registration is currently active (sourced from the nomenclature file).
-    ACTIVE,
-    /// The medicine has been officially withdrawn from the market.
-    WITHDRAWN,
-    /// The medicine registration was not renewed upon expiry.
-    MARKED_NOT_RENEWED
+  /// The medicine registration is currently active (sourced from the nomenclature file).
+  ACTIVE,
+  /// The medicine has been officially withdrawn from the market.
+  WITHDRAWN,
+  /// The medicine registration was not renewed upon expiry.
+  MARKED_NOT_RENEWED
 }

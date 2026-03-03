@@ -2,7 +2,6 @@ package dz.anisbouhadida.medzloader.domain.model;
 
 import dz.anisbouhadida.medzloader.domain.model.enums.MedicineEventType;
 import dz.anisbouhadida.medzloader.domain.model.enums.MedicineStatus;
-
 import java.time.LocalDateTime;
 
 /// Represents a **nomenclature upsert** event for a [Medicine].
@@ -18,21 +17,26 @@ import java.time.LocalDateTime;
 ///
 /// @author Anis Bouhadida
 /// @since 0.0.1
-public record NomenclatureEvent(Medicine medicine, LocalDateTime finalRegistrationDate, String stabilityDuration, String observations) implements MedicineEvent {
+public record NomenclatureEvent(
+    Medicine medicine,
+    LocalDateTime finalRegistrationDate,
+    String stabilityDuration,
+    String observations)
+    implements MedicineEvent {
 
-        /// {@inheritDoc}
-        ///
-        /// Always returns [MedicineStatus#ACTIVE].
-        @Override
-        public MedicineStatus status() {
-            return MedicineStatus.ACTIVE;
-        }
+  /// {@inheritDoc}
+  ///
+  /// Always returns [MedicineStatus#ACTIVE].
+  @Override
+  public MedicineStatus status() {
+    return MedicineStatus.ACTIVE;
+  }
 
-    /// {@inheritDoc}
-    ///
-    /// Always returns [MedicineEventType#UPSERT].
-    @Override
-    public MedicineEventType eventType() {
-        return MedicineEventType.UPSERT;
-    }
+  /// {@inheritDoc}
+  ///
+  /// Always returns [MedicineEventType#UPSERT].
+  @Override
+  public MedicineEventType eventType() {
+    return MedicineEventType.UPSERT;
+  }
 }

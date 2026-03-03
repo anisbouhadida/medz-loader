@@ -23,29 +23,31 @@ import org.springframework.transaction.PlatformTransactionManager;
 @Configuration
 public class MedzLoaderStepConfiguration {
 
-    /// Builds the chunk-oriented [Step] that orchestrates the medicine loading pipeline.
-    ///
-    /// Each chunk processes **100** items at a time within a single transaction.
-    ///
-    /// @param jobRepository       the repository used to persist step metadata
-    /// @param transactionManager  the transaction manager governing chunk boundaries
-    /// @param multiCsvItemReader          the reader supplying [MedicineLine] records
-    /// @param medicineItemProcessor       the processor transforming [MedicineLine] to [MedicineEvent]
-    /// @param medicineCompositeItemWriter          the writer persisting [MedicineEvent] objects
-    /// @return a fully configured batch step
-    @Bean
-    public Step medzLoaderStep(JobRepository jobRepository,
-                               PlatformTransactionManager transactionManager,
-                               ItemReader<MedicineLine> multiCsvItemReader,
-                               ItemProcessor<MedicineLine, MedicineEvent> medicineItemProcessor,
-                               ItemWriter<MedicineEvent> medicineCompositeItemWriter) {
-        return new StepBuilder("medzLoaderStep",jobRepository)
-                .<MedicineLine,MedicineEvent>chunk(100).transactionManager(transactionManager)
-                .reader(multiCsvItemReader)
-                .processor(medicineItemProcessor)
-                .writer(medicineCompositeItemWriter)
-                .faultTolerant()
-                .build();
-
-    }
+  /// Builds the chunk-oriented [Step] that orchestrates the medicine loading pipeline.
+  ///
+  /// Each chunk processes **100** items at a time within a single transaction.
+  ///
+  /// @param jobRepository       the repository used to persist step metadata
+  /// @param transactionManager  the transaction manager governing chunk boundaries
+  /// @param multiCsvItemReader          the reader supplying [MedicineLine] records
+  /// @param medicineItemProcessor       the processor transforming [MedicineLine] to
+  // [MedicineEvent]
+  /// @param medicineCompositeItemWriter          the writer persisting [MedicineEvent] objects
+  /// @return a fully configured batch step
+  @Bean
+  public Step medzLoaderStep(
+      JobRepository jobRepository,
+      PlatformTransactionManager transactionManager,
+      ItemReader<MedicineLine> multiCsvItemReader,
+      ItemProcessor<MedicineLine, MedicineEvent> medicineItemProcessor,
+      ItemWriter<MedicineEvent> medicineCompositeItemWriter) {
+    return new StepBuilder("medzLoaderStep", jobRepository)
+        .<MedicineLine, MedicineEvent>chunk(100)
+        .transactionManager(transactionManager)
+        .reader(multiCsvItemReader)
+        .processor(medicineItemProcessor)
+        .writer(medicineCompositeItemWriter)
+        .faultTolerant()
+        .build();
+  }
 }

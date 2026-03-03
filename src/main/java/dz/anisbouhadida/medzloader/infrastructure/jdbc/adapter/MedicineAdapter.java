@@ -17,14 +17,18 @@ import org.springframework.stereotype.Component;
 @RequiredArgsConstructor
 public class MedicineAdapter implements MedicinePort {
 
-    private final MedicineRepository medicineRepository;
+  private final MedicineRepository medicineRepository;
 
-    @Override
-    public int getMedicineVersionByRegistrationNumber(String registrationNumber, String code,
-                                                      String internationalCommonDenomination,
-                                                      String brandName, String laboratoryHolder) {
-        return this.medicineRepository.findVersionByRegistrationNumber(registrationNumber, code,
-                internationalCommonDenomination, brandName, laboratoryHolder)
-                .orElse(0);
-    }
+  @Override
+  public int getMedicineVersionByRegistrationNumber(
+      String registrationNumber,
+      String code,
+      String internationalCommonDenomination,
+      String brandName,
+      String laboratoryHolder) {
+    return this.medicineRepository
+        .findVersionByRegistrationNumber(
+            registrationNumber, code, internationalCommonDenomination, brandName, laboratoryHolder)
+        .orElse(0);
+  }
 }

@@ -2,7 +2,6 @@ package dz.anisbouhadida.medzloader.infrastructure.jdbc.entity;
 
 import dz.anisbouhadida.medzloader.domain.model.enums.MedicineOrigin;
 import dz.anisbouhadida.medzloader.domain.model.enums.MedicineType;
-
 import java.time.OffsetDateTime;
 
 /// Represents a row from the `medicine` table.
@@ -59,22 +58,21 @@ import java.time.OffsetDateTime;
 /// @author Anis Bouhadida
 /// @since 0.2.0
 public record MedicineEntity(
-        long id,
-        String registrationNumber,
-        String code,
-        String icd,
-        String brandName,
-        String form,
-        String dosage,
-        String packaging,
-        String list,
-        String p1,
-        String p2,
-        String laboratoryHolder,
-        String laboratoryCountry,
-        OffsetDateTime initialRegistrationDate,
-        MedicineType type,
-        MedicineOrigin origin,
-        int version,
-        OffsetDateTime lastUpdated
-) {}
+    long id,
+    String registrationNumber,
+    String code,
+    String icd,
+    String brandName,
+    String form,
+    String dosage,
+    String packaging,
+    String list,
+    String p1,
+    String p2,
+    String laboratoryHolder,
+    String laboratoryCountry,
+    OffsetDateTime initialRegistrationDate,
+    MedicineType type,
+    MedicineOrigin origin,
+    int version,
+    OffsetDateTime lastUpdated) {}

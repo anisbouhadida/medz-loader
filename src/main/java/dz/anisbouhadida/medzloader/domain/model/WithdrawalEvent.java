@@ -2,7 +2,6 @@ package dz.anisbouhadida.medzloader.domain.model;
 
 import dz.anisbouhadida.medzloader.domain.model.enums.MedicineEventType;
 import dz.anisbouhadida.medzloader.domain.model.enums.MedicineStatus;
-
 import java.time.LocalDateTime;
 
 /// Represents a **withdrawal** event for a [Medicine].
@@ -17,21 +16,23 @@ import java.time.LocalDateTime;
 ///
 /// @author Anis Bouhadida
 /// @since 0.0.1
-public record WithdrawalEvent(Medicine medicine, LocalDateTime withdrawalDate, String withdrawalReason) implements MedicineEvent {
+public record WithdrawalEvent(
+    Medicine medicine, LocalDateTime withdrawalDate, String withdrawalReason)
+    implements MedicineEvent {
 
-    /// {@inheritDoc}
-    ///
-    /// Always returns [MedicineStatus#WITHDRAWN].
-    @Override
-    public MedicineStatus status() {
-        return MedicineStatus.WITHDRAWN;
-    }
+  /// {@inheritDoc}
+  ///
+  /// Always returns [MedicineStatus#WITHDRAWN].
+  @Override
+  public MedicineStatus status() {
+    return MedicineStatus.WITHDRAWN;
+  }
 
-    /// {@inheritDoc}
-    ///
-    /// Always returns [MedicineEventType#WITHDRAWAL].
-    @Override
-    public MedicineEventType eventType() {
-        return MedicineEventType.WITHDRAWAL;
-    }
+  /// {@inheritDoc}
+  ///
+  /// Always returns [MedicineEventType#WITHDRAWAL].
+  @Override
+  public MedicineEventType eventType() {
+    return MedicineEventType.WITHDRAWAL;
+  }
 }

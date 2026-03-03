@@ -1,13 +1,13 @@
 <?xml version="1.0" encoding="UTF-8"?>
-<project xmlns="http://maven.apache.org/POM/4.0.0" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
-         xsi:schemaLocation="http://maven.apache.org/POM/4.0.0 https://maven.apache.org/xsd/maven-4.0.0.xsd">
+<project xmlns="http://maven.apache.org/POM/4.0.0" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xsi:schemaLocation="http://maven.apache.org/POM/4.0.0 https://maven.apache.org/xsd/maven-4.0.0.xsd">
     <modelVersion>4.0.0</modelVersion>
 
     <parent>
         <groupId>org.springframework.boot</groupId>
         <artifactId>spring-boot-starter-parent</artifactId>
         <version>4.0.3</version>
-        <relativePath/> <!-- lookup parent from repository -->
+        <relativePath/>
+        <!-- lookup parent from repository -->
     </parent>
 
     <groupId>dz.anisbouhadida</groupId>
@@ -16,10 +16,8 @@
     <packaging>jar</packaging>
 
     <name>medz-loader</name>
-    <description>
-        A Spring Batch ETL application that loads Algerian medicine nomenclature data
-        (additions, non-renewals and withdrawals) into a PostgreSQL database.
-    </description>
+    <description>A Spring Batch ETL application that loads Algerian medicine nomenclature data
+        (additions, non-renewals and withdrawals) into a PostgreSQL database.</description>
     <url>https://github.com/anisbouhadida/medz-loader</url>
     <inceptionYear>2024</inceptionYear>
 
@@ -57,8 +55,8 @@
     <scm>
         <connection>scm:git:git://github.com/anisbouhadida/medz-loader.git</connection>
         <developerConnection>scm:git:ssh://github.com/anisbouhadida/medz-loader.git</developerConnection>
-        <url>https://github.com/anisbouhadida/medz-loader</url>
         <tag>HEAD</tag>
+        <url>https://github.com/anisbouhadida/medz-loader</url>
     </scm>
 
     <!-- =========================================================== -->
@@ -257,10 +255,10 @@
                 <executions>
                     <execution>
                         <id>attach-sources</id>
-                        <phase>verify</phase>
                         <goals>
                             <goal>jar-no-fork</goal>
                         </goals>
+                        <phase>verify</phase>
                     </execution>
                 </executions>
             </plugin>
@@ -279,10 +277,10 @@
                 <executions>
                     <execution>
                         <id>attach-javadocs</id>
-                        <phase>verify</phase>
                         <goals>
                             <goal>jar</goal>
                         </goals>
+                        <phase>verify</phase>
                     </execution>
                 </executions>
             </plugin>
@@ -301,17 +299,17 @@
                     </execution>
                     <execution>
                         <id>report</id>
-                        <phase>verify</phase>
                         <goals>
                             <goal>report</goal>
                         </goals>
+                        <phase>verify</phase>
                     </execution>
                     <execution>
                         <id>check</id>
-                        <phase>verify</phase>
                         <goals>
                             <goal>check</goal>
                         </goals>
+                        <phase>verify</phase>
                         <configuration>
                             <rules>
                                 <rule>
@@ -357,10 +355,10 @@
                 <executions>
                     <execution>
                         <id>spotless-check</id>
-                        <phase>verify</phase>
                         <goals>
                             <goal>check</goal>
                         </goals>
+                        <phase>verify</phase>
                     </execution>
                 </executions>
             </plugin>

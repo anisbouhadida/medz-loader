@@ -8,10 +8,10 @@ package dz.anisbouhadida.medzloader.domain.model.enums;
 /// @author Anis Bouhadida
 /// @since 0.0.1
 public enum MedicineType {
-    /// `GE` or `G` in the source file.
-    GE,
-    /// `RE` or `R` in the source file.
-    RE,
-    /// `BIO` in the source file.
-    BIO
+  /// `GE` or `G` in the source file.
+  GE,
+  /// `RE` or `R` in the source file.
+  RE,
+  /// `BIO` in the source file.
+  BIO
 }

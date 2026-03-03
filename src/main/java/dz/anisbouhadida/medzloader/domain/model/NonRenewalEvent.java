@@ -2,7 +2,6 @@ package dz.anisbouhadida.medzloader.domain.model;
 
 import dz.anisbouhadida.medzloader.domain.model.enums.MedicineEventType;
 import dz.anisbouhadida.medzloader.domain.model.enums.MedicineStatus;
-
 import java.time.LocalDateTime;
 
 /// Represents a **non-renewal** event for a [Medicine].
@@ -17,21 +16,23 @@ import java.time.LocalDateTime;
 ///
 /// @author Anis Bouhadida
 /// @since 0.0.1
-public record NonRenewalEvent(Medicine medicine, LocalDateTime finalRegistrationDate, String observations) implements MedicineEvent {
+public record NonRenewalEvent(
+    Medicine medicine, LocalDateTime finalRegistrationDate, String observations)
+    implements MedicineEvent {
 
-    /// {@inheritDoc}
-    ///
-    /// Always returns [MedicineStatus#MARKED_NOT_RENEWED].
-    @Override
-    public MedicineStatus status() {
-        return MedicineStatus.MARKED_NOT_RENEWED;
-    }
+  /// {@inheritDoc}
+  ///
+  /// Always returns [MedicineStatus#MARKED_NOT_RENEWED].
+  @Override
+  public MedicineStatus status() {
+    return MedicineStatus.MARKED_NOT_RENEWED;
+  }
 
-    /// {@inheritDoc}
-    ///
-    /// Always returns [MedicineEventType#NON_RENEWAL].
-    @Override
-    public MedicineEventType eventType() {
-        return MedicineEventType.NON_RENEWAL;
-    }
+  /// {@inheritDoc}
+  ///
+  /// Always returns [MedicineEventType#NON_RENEWAL].
+  @Override
+  public MedicineEventType eventType() {
+    return MedicineEventType.NON_RENEWAL;
+  }
 }

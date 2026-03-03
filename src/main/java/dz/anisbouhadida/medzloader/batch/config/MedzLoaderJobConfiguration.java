@@ -18,19 +18,19 @@ import org.springframework.context.annotation.Configuration;
 @Configuration
 public class MedzLoaderJobConfiguration {
 
-    /// Creates the `medzLoaderJob` batch [Job].
-    ///
-    /// The job starts with the provided [Step] and is persisted via the
-    /// given [JobRepository].
-    ///
-    /// @param jobRepository   the repository used to persist job metadata
-    /// @param medzLoaderStep  the step that performs the medicine loading work
-    /// @return a fully configured batch job
-    @Bean
-    public Job medzLoaderJob(JobRepository jobRepository, Step medzLoaderStep) {
-        return new JobBuilder("medzLoaderJob", jobRepository)
-                .incrementer(new RunIdIncrementer())
-                .start(medzLoaderStep)
-                .build();
-    }
+  /// Creates the `medzLoaderJob` batch [Job].
+  ///
+  /// The job starts with the provided [Step] and is persisted via the
+  /// given [JobRepository].
+  ///
+  /// @param jobRepository   the repository used to persist job metadata
+  /// @param medzLoaderStep  the step that performs the medicine loading work
+  /// @return a fully configured batch job
+  @Bean
+  public Job medzLoaderJob(JobRepository jobRepository, Step medzLoaderStep) {
+    return new JobBuilder("medzLoaderJob", jobRepository)
+        .incrementer(new RunIdIncrementer())
+        .start(medzLoaderStep)
+        .build();
+  }
 }

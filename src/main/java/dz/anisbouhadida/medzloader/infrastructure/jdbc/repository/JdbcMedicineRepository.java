@@ -1,14 +1,13 @@
 package dz.anisbouhadida.medzloader.infrastructure.jdbc.repository;
 
+import static dz.anisbouhadida.medzloader.batch.support.utils.MedicineSqlUtils.compositeKeyParams;
+import static dz.anisbouhadida.medzloader.batch.support.utils.MedicineSqlUtils.loadSql;
+
+import java.util.Optional;
 import lombok.RequiredArgsConstructor;
 import org.springframework.dao.EmptyResultDataAccessException;
 import org.springframework.jdbc.core.namedparam.NamedParameterJdbcTemplate;
 import org.springframework.stereotype.Repository;
-
-import java.util.Optional;
-
-import static dz.anisbouhadida.medzloader.batch.support.utils.MedicineSqlUtils.compositeKeyParams;
-import static dz.anisbouhadida.medzloader.batch.support.utils.MedicineSqlUtils.loadSql;
 
 /// JDBC implementation of [MedicineRepository].
 ///
@@ -27,30 +26,29 @@ import static dz.anisbouhadida.medzloader.batch.support.utils.MedicineSqlUtils.l
 @RequiredArgsConstructor
 class JdbcMedicineRepository implements MedicineRepository {
 
-    private static final String FIND_VERSION_SQL = loadSql("sql/read/medicine-find-version.sql");
+  private static final String FIND_VERSION_SQL = loadSql("sql/read/medicine-find-version.sql");
 
-    private final NamedParameterJdbcTemplate jdbcTemplate;
+  private final NamedParameterJdbcTemplate jdbcTemplate;
 
-    /// Executes a single-column `SELECT version` against the `medicine` table
-    /// using the composite business key. Returns [Optional#empty()] when no row
-    /// matches (new medicine) or when the query raises
-    /// [EmptyResultDataAccessException].
-    @Override
-    public Optional<Integer> findVersionByRegistrationNumber(
-            String registrationNumber,
-            String code,
-            String internationalCommonDenomination,
-            String brandName,
-            String laboratoryHolder
-    ) {
-        var params = compositeKeyParams(registrationNumber, code, internationalCommonDenomination, brandName, laboratoryHolder);
-        try {
-            var version = jdbcTemplate.queryForObject(FIND_VERSION_SQL, params, Integer.class);
-            return Optional.ofNullable(version);
-        } catch (EmptyResultDataAccessException _) {
-            return Optional.empty();
-        }
+  /// Executes a single-column `SELECT version` against the `medicine` table
+  /// using the composite business key. Returns [Optional#empty()] when no row
+  /// matches (new medicine) or when the query raises
+  /// [EmptyResultDataAccessException].
+  @Override
+  public Optional<Integer> findVersionByRegistrationNumber(
+      String registrationNumber,
+      String code,
+      String internationalCommonDenomination,
+      String brandName,
+      String laboratoryHolder) {
+    var params =
+        compositeKeyParams(
+            registrationNumber, code, internationalCommonDenomination, brandName, laboratoryHolder);
+    try {
+      var version = jdbcTemplate.queryForObject(FIND_VERSION_SQL, params, Integer.class);
+      return Optional.ofNullable(version);
+    } catch (EmptyResultDataAccessException _) {
+      return Optional.empty();
     }
+  }
 }
-
-

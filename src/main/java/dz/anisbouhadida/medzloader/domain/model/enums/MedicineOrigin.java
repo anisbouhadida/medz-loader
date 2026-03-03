@@ -8,8 +8,8 @@ package dz.anisbouhadida.medzloader.domain.model.enums;
 /// @author Anis Bouhadida
 /// @since 0.0.1
 public enum MedicineOrigin {
-    /// The medicine is manufactured locally.
-    MANUFACTURED,
-    /// The medicine is imported from abroad.
-    IMPORTED
+  /// The medicine is manufactured locally.
+  MANUFACTURED,
+  /// The medicine is imported from abroad.
+  IMPORTED
 }

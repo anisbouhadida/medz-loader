@@ -17,14 +17,12 @@ import dz.anisbouhadida.medzloader.domain.model.enums.MedicineStatus;
 /// @since 0.0.1
 public sealed interface MedicineEvent permits NomenclatureEvent, WithdrawalEvent, NonRenewalEvent {
 
-    /// Returns the [Medicine] this event is associated with.
-    Medicine medicine();
+  /// Returns the [Medicine] this event is associated with.
+  Medicine medicine();
 
-    /// Returns the [MedicineStatus] resulting from this event.
-    MedicineStatus status();
+  /// Returns the [MedicineStatus] resulting from this event.
+  MedicineStatus status();
 
-    /// Returns the [MedicineEventType] that classifies this event.
-    MedicineEventType eventType();
-
-
+  /// Returns the [MedicineEventType] that classifies this event.
+  MedicineEventType eventType();
 }

@@ -2,7 +2,6 @@ package dz.anisbouhadida.medzloader.domain.model;
 
 import dz.anisbouhadida.medzloader.domain.model.enums.MedicineOrigin;
 import dz.anisbouhadida.medzloader.domain.model.enums.MedicineType;
-
 import java.time.LocalDateTime;
 
 /// Represents a registered medicine with all its regulatory information.
@@ -31,20 +30,19 @@ import java.time.LocalDateTime;
 /// @author Anis Bouhadida
 /// @since 0.0.1
 public record Medicine(
-        String registrationNumber,
-        String code,
-        String internationalCommonDenomination,
-        String brandName,
-        String form,
-        String dosage,
-        String packaging,
-        String list,
-        String p1,
-        String p2,
-        String laboratoryHolder,
-        String laboratoryCountry,
-        LocalDateTime initialRegistrationDate,
-        MedicineType type,
-        MedicineOrigin origin,
-        int version
-) {}
+    String registrationNumber,
+    String code,
+    String internationalCommonDenomination,
+    String brandName,
+    String form,
+    String dosage,
+    String packaging,
+    String list,
+    String p1,
+    String p2,
+    String laboratoryHolder,
+    String laboratoryCountry,
+    LocalDateTime initialRegistrationDate,
+    MedicineType type,
+    MedicineOrigin origin,
+    int version) {}

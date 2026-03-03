@@ -8,6 +8,7 @@ import dz.anisbouhadida.medzloader.batch.support.mapper.MedicineLineMapper;
 import dz.anisbouhadida.medzloader.domain.api.MedicineApi;
 import dz.anisbouhadida.medzloader.domain.model.MedicineEvent;
 import dz.anisbouhadida.medzloader.domain.model.NomenclatureEvent;
+import java.util.List;
 import lombok.RequiredArgsConstructor;
 import org.mapstruct.factory.Mappers;
 import org.springframework.batch.infrastructure.item.ItemProcessor;
@@ -17,8 +18,6 @@ import org.springframework.batch.infrastructure.item.validator.BeanValidatingIte
 import org.springframework.classify.Classifier;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
-
-import java.util.List;
 
 /// Spring Batch configuration for the item processors that handle medicine file lines.
 ///
@@ -34,97 +33,98 @@ import java.util.List;
 @RequiredArgsConstructor
 public class MedicineItemProcessorConfiguration {
 
-    private final MedicineApi medicineApi;
+  private final MedicineApi medicineApi;
 
-    /// Creates a [CompositeItemProcessor] that first applies bean validation,
-    /// then delegates the transformation to a [ClassifierCompositeItemProcessor]
-    /// which selects an appropriate processor according to the concrete line type.
-    ///
-    /// @return a configured [CompositeItemProcessor] ready to be injected into a Step.
-    @Bean
-    public CompositeItemProcessor<MedicineLine, MedicineEvent> medicineItemProcessor() {
-        CompositeItemProcessor<MedicineLine, MedicineEvent> processor = new CompositeItemProcessor<>();
-        processor.setDelegates(List.of(
-                beanValidatingItemProcessor(),
-                medicineCompositeItemProcessor()
-        ));
-        return processor;
-    }
+  /// Creates a [CompositeItemProcessor] that first applies bean validation,
+  /// then delegates the transformation to a [ClassifierCompositeItemProcessor]
+  /// which selects an appropriate processor according to the concrete line type.
+  ///
+  /// @return a configured [CompositeItemProcessor] ready to be injected into a Step.
+  @Bean
+  public CompositeItemProcessor<MedicineLine, MedicineEvent> medicineItemProcessor() {
+    CompositeItemProcessor<MedicineLine, MedicineEvent> processor = new CompositeItemProcessor<>();
+    processor.setDelegates(
+        List.of(beanValidatingItemProcessor(), medicineCompositeItemProcessor()));
+    return processor;
+  }
 
-    /// Provides a [BeanValidatingItemProcessor] configured to filter
-    /// invalid lines instead of throwing exceptions.
-    ///
-    /// @return a [BeanValidatingItemProcessor] that filters invalid items.
-    @Bean
-    protected BeanValidatingItemProcessor<MedicineLine> beanValidatingItemProcessor() {
-        BeanValidatingItemProcessor<MedicineLine>  processor = new BeanValidatingItemProcessor<>();
-        processor.setFilter(true);
-        return processor;
-    }
+  /// Provides a [BeanValidatingItemProcessor] configured to filter
+  /// invalid lines instead of throwing exceptions.
+  ///
+  /// @return a [BeanValidatingItemProcessor] that filters invalid items.
+  @Bean
+  protected BeanValidatingItemProcessor<MedicineLine> beanValidatingItemProcessor() {
+    BeanValidatingItemProcessor<MedicineLine> processor = new BeanValidatingItemProcessor<>();
+    processor.setFilter(true);
+    return processor;
+  }
 
-    /// Provides a [ClassifierCompositeItemProcessor] that routes each [MedicineLine]
-    /// to a concrete [ItemProcessor] (nomenclature, withdrawal, non-renewal).
-    ///
-    /// @return a configured [ClassifierCompositeItemProcessor] for routing.
-    @Bean
-    protected ClassifierCompositeItemProcessor<MedicineLine, MedicineEvent> medicineCompositeItemProcessor() {
-        ClassifierCompositeItemProcessor<MedicineLine, MedicineEvent> processor = new ClassifierCompositeItemProcessor<>();
-        processor.setClassifier(medicineLineClassifier());
-        return processor;
-    }
+  /// Provides a [ClassifierCompositeItemProcessor] that routes each [MedicineLine]
+  /// to a concrete [ItemProcessor] (nomenclature, withdrawal, non-renewal).
+  ///
+  /// @return a configured [ClassifierCompositeItemProcessor] for routing.
+  @Bean
+  protected ClassifierCompositeItemProcessor<MedicineLine, MedicineEvent>
+      medicineCompositeItemProcessor() {
+    ClassifierCompositeItemProcessor<MedicineLine, MedicineEvent> processor =
+        new ClassifierCompositeItemProcessor<>();
+    processor.setClassifier(medicineLineClassifier());
+    return processor;
+  }
 
-    /// Classifier that chooses the appropriate [ItemProcessor] depending on the concrete
-    /// subtype of [MedicineLine] being processed.
-    ///
-    /// Covered implementations: [NomenclatureLine], [WithdrawalLine], [NonRenewalLine].
-    ///
-    /// @return a [Classifier] that returns a suitable [ItemProcessor].
-    @Bean
-    protected Classifier<MedicineLine, ItemProcessor<?, ? extends MedicineEvent>> medicineLineClassifier() {
-        return item -> {
-            switch (item) {
-                case NomenclatureLine _ -> {
-                    return nomenclatureItemProcessor();
-                }
-                case WithdrawalLine _ -> {
-                    return withdrawalItemProcessor();
-                }
-                case NonRenewalLine _ -> {
-                    return nonRenewalItemProcessor();
-                }
-            }
-        };
-    }
+  /// Classifier that chooses the appropriate [ItemProcessor] depending on the concrete
+  /// subtype of [MedicineLine] being processed.
+  ///
+  /// Covered implementations: [NomenclatureLine], [WithdrawalLine], [NonRenewalLine].
+  ///
+  /// @return a [Classifier] that returns a suitable [ItemProcessor].
+  @Bean
+  protected Classifier<MedicineLine, ItemProcessor<?, ? extends MedicineEvent>>
+      medicineLineClassifier() {
+    return item -> {
+      switch (item) {
+        case NomenclatureLine _ -> {
+          return nomenclatureItemProcessor();
+        }
+        case WithdrawalLine _ -> {
+          return withdrawalItemProcessor();
+        }
+        case NonRenewalLine _ -> {
+          return nonRenewalItemProcessor();
+        }
+      }
+    };
+  }
 
-    /// Processor that transforms a [NomenclatureLine] into a [NomenclatureEvent].
-    ///
-    /// @return an [ItemProcessor] converting [NomenclatureLine] to [NomenclatureEvent].
-    @Bean
-    protected ItemProcessor<NomenclatureLine, NomenclatureEvent> nomenclatureItemProcessor() {
-        return line -> medicineLineMapper().toMedicineEvent(line, medicineApi);
-    }
+  /// Processor that transforms a [NomenclatureLine] into a [NomenclatureEvent].
+  ///
+  /// @return an [ItemProcessor] converting [NomenclatureLine] to [NomenclatureEvent].
+  @Bean
+  protected ItemProcessor<NomenclatureLine, NomenclatureEvent> nomenclatureItemProcessor() {
+    return line -> medicineLineMapper().toMedicineEvent(line, medicineApi);
+  }
 
-    /// Processor that transforms a [WithdrawalLine] into a [MedicineEvent].
-    ///
-    /// @return an [ItemProcessor] converting [WithdrawalLine] to [MedicineEvent].
-    @Bean
-    protected ItemProcessor<WithdrawalLine, MedicineEvent> withdrawalItemProcessor() {
-        return line -> medicineLineMapper().toMedicineEvent(line, medicineApi);
-    }
+  /// Processor that transforms a [WithdrawalLine] into a [MedicineEvent].
+  ///
+  /// @return an [ItemProcessor] converting [WithdrawalLine] to [MedicineEvent].
+  @Bean
+  protected ItemProcessor<WithdrawalLine, MedicineEvent> withdrawalItemProcessor() {
+    return line -> medicineLineMapper().toMedicineEvent(line, medicineApi);
+  }
 
-    /// Processor that transforms a [NonRenewalLine] into a [MedicineEvent].
-    ///
-    /// @return an [ItemProcessor] converting [NonRenewalLine] to [MedicineEvent].
-    @Bean
-    protected ItemProcessor<NonRenewalLine, MedicineEvent> nonRenewalItemProcessor() {
-        return line -> medicineLineMapper().toMedicineEvent(line, medicineApi);
-    }
+  /// Processor that transforms a [NonRenewalLine] into a [MedicineEvent].
+  ///
+  /// @return an [ItemProcessor] converting [NonRenewalLine] to [MedicineEvent].
+  @Bean
+  protected ItemProcessor<NonRenewalLine, MedicineEvent> nonRenewalItemProcessor() {
+    return line -> medicineLineMapper().toMedicineEvent(line, medicineApi);
+  }
 
-    /// Provides the mapper implementation that converts lines to domain events.
-    ///
-    /// @return an instance of [MedicineLineMapper].
-    @Bean
-    protected MedicineLineMapper medicineLineMapper() {
-        return Mappers.getMapper(MedicineLineMapper.class);
-    }
+  /// Provides the mapper implementation that converts lines to domain events.
+  ///
+  /// @return an instance of [MedicineLineMapper].
+  @Bean
+  protected MedicineLineMapper medicineLineMapper() {
+    return Mappers.getMapper(MedicineLineMapper.class);
+  }
 }

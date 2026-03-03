@@ -16,10 +16,16 @@ import org.springframework.stereotype.Service;
 @RequiredArgsConstructor
 public class MedicineService implements MedicineApi {
 
-    private final MedicinePort medicinePort;
+  private final MedicinePort medicinePort;
 
-    @Override
-    public int getMedicineVersionByRegistrationNumber(String registrationNumber, String code, String internationalCommonDenomination, String brandName, String laboratoryHolder) {
-        return this.medicinePort.getMedicineVersionByRegistrationNumber(registrationNumber, code, internationalCommonDenomination, brandName, laboratoryHolder);
-    }
+  @Override
+  public int getMedicineVersionByRegistrationNumber(
+      String registrationNumber,
+      String code,
+      String internationalCommonDenomination,
+      String brandName,
+      String laboratoryHolder) {
+    return this.medicinePort.getMedicineVersionByRegistrationNumber(
+        registrationNumber, code, internationalCommonDenomination, brandName, laboratoryHolder);
+  }
 }

@@ -2,10 +2,9 @@ package dz.anisbouhadida.medzloader.config;
 
 import jakarta.validation.constraints.NotBlank;
 import jakarta.validation.constraints.NotNull;
+import java.time.ZoneId;
 import org.springframework.boot.context.properties.ConfigurationProperties;
 import org.springframework.validation.annotation.Validated;
-
-import java.time.ZoneId;
 
 /// Typed configuration properties for the `medz.loader` namespace.
 ///
@@ -41,11 +40,6 @@ import java.time.ZoneId;
 @Validated
 @ConfigurationProperties(prefix = "medz.loader")
 public record MedzLoaderProperties(
-
-        @NotBlank(message = "medz.loader.input-dir must not be blank")
-        String inputDir,
-
-        @NotNull(message = "medz.loader.registration-zone-id must not be null")
-        ZoneId registrationZoneId
-
-) {}
+    @NotBlank(message = "medz.loader.input-dir must not be blank") String inputDir,
+    @NotNull(message = "medz.loader.registration-zone-id must not be null")
+        ZoneId registrationZoneId) {}
