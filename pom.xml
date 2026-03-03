@@ -2,36 +2,127 @@
 <project xmlns="http://maven.apache.org/POM/4.0.0" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
          xsi:schemaLocation="http://maven.apache.org/POM/4.0.0 https://maven.apache.org/xsd/maven-4.0.0.xsd">
     <modelVersion>4.0.0</modelVersion>
+
     <parent>
         <groupId>org.springframework.boot</groupId>
         <artifactId>spring-boot-starter-parent</artifactId>
         <version>4.0.3</version>
         <relativePath/> <!-- lookup parent from repository -->
     </parent>
+
     <groupId>dz.anisbouhadida</groupId>
     <artifactId>medz-loader</artifactId>
-    <version>0.1.1-SNAPSHOT</version>
-    <name>medz-loader</name>
-    <description>medz-loader</description>
+    <version>0.2.0-SNAPSHOT</version>
+    <packaging>jar</packaging>
 
-    <url/>
+    <name>medz-loader</name>
+    <description>
+        A Spring Batch ETL application that loads Algerian medicine nomenclature data
+        (additions, non-renewals and withdrawals) into a PostgreSQL database.
+    </description>
+    <url>https://github.com/anisbouhadida/medz-loader</url>
+    <inceptionYear>2024</inceptionYear>
+
+    <!-- =========================================================== -->
+    <!-- License                                                       -->
+    <!-- =========================================================== -->
     <licenses>
-        <license/>
+        <license>
+            <name>Apache License, Version 2.0</name>
+            <url>https://www.apache.org/licenses/LICENSE-2.0.txt</url>
+            <distribution>repo</distribution>
+            <comments>A business-friendly OSS license</comments>
+        </license>
     </licenses>
+
+    <!-- =========================================================== -->
+    <!-- Developers                                                    -->
+    <!-- =========================================================== -->
     <developers>
-        <developer/>
+        <developer>
+            <id>anisbouhadida</id>
+            <name>Anis Bouhadida</name>
+            <url>https://github.com/anisbouhadida</url>
+            <roles>
+                <role>author</role>
+                <role>maintainer</role>
+            </roles>
+            <timezone>Europe/Paris</timezone>
+        </developer>
     </developers>
+
+    <!-- =========================================================== -->
+    <!-- Source Control Management                                     -->
+    <!-- =========================================================== -->
     <scm>
-        <connection/>
-        <developerConnection/>
-        <tag/>
-        <url/>
+        <connection>scm:git:git://github.com/anisbouhadida/medz-loader.git</connection>
+        <developerConnection>scm:git:ssh://github.com/anisbouhadida/medz-loader.git</developerConnection>
+        <url>https://github.com/anisbouhadida/medz-loader</url>
+        <tag>HEAD</tag>
     </scm>
+
+    <!-- =========================================================== -->
+    <!-- Issue Management                                              -->
+    <!-- =========================================================== -->
+    <issueManagement>
+        <system>GitHub Issues</system>
+        <url>https://github.com/anisbouhadida/medz-loader/issues</url>
+    </issueManagement>
+
+    <!-- =========================================================== -->
+    <!-- CI / CD                                                       -->
+    <!-- =========================================================== -->
+    <ciManagement>
+        <system>GitHub Actions</system>
+        <url>https://github.com/anisbouhadida/medz-loader/actions</url>
+    </ciManagement>
+
+    <!-- =========================================================== -->
+    <!-- Distribution Management (GitHub Packages)                    -->
+    <!-- =========================================================== -->
+    <distributionManagement>
+        <repository>
+            <id>github</id>
+            <name>GitHub Packages</name>
+            <url>https://maven.pkg.github.com/anisbouhadida/medz-loader</url>
+        </repository>
+        <snapshotRepository>
+            <id>github</id>
+            <name>GitHub Packages Snapshots</name>
+            <url>https://maven.pkg.github.com/anisbouhadida/medz-loader</url>
+        </snapshotRepository>
+    </distributionManagement>
+
+    <!-- =========================================================== -->
+    <!-- Properties                                                    -->
+    <!-- =========================================================== -->
     <properties>
+        <!-- Java -->
         <java.version>25</java.version>
-        <org.mapstruct.version>1.6.3</org.mapstruct.version>
         <start-class>dz.anisbouhadida.medzloader.MedzLoaderApplication</start-class>
+
+        <!-- Encoding -->
+        <project.build.sourceEncoding>UTF-8</project.build.sourceEncoding>
+        <project.reporting.outputEncoding>UTF-8</project.reporting.outputEncoding>
+
+        <!-- Dependencies versions -->
+        <org.mapstruct.version>1.6.3</org.mapstruct.version>
+
+        <!-- Plugin versions -->
+        <maven-enforcer-plugin.version>3.6.2</maven-enforcer-plugin.version>
+        <maven-source-plugin.version>3.4.0</maven-source-plugin.version>
+        <maven-javadoc-plugin.version>3.12.0</maven-javadoc-plugin.version>
+        <jacoco-maven-plugin.version>0.8.14</jacoco-maven-plugin.version>
+        <spotless-maven-plugin.version>3.2.1</spotless-maven-plugin.version>
+        <versions-maven-plugin.version>2.21.0</versions-maven-plugin.version>
+
+        <!-- Code coverage threshold -->
+        <jacoco.minimum.coverage>0.80</jacoco.minimum.coverage>
     </properties>
+
+    <!-- =========================================================== -->
+    <!-- Dependencies                                                  -->
+    <!-- =========================================================== -->
     <dependencies>
         <dependency>
             <groupId>org.springframework.boot</groupId>
@@ -63,6 +154,7 @@
             <optional>true</optional>
         </dependency>
 
+        <!-- Test -->
         <dependency>
             <groupId>org.springframework.boot</groupId>
             <artifactId>spring-boot-starter-batch-jdbc-test</artifactId>
@@ -80,8 +172,13 @@
         </dependency>
     </dependencies>
 
+    <!-- =========================================================== -->
+    <!-- Build                                                         -->
+    <!-- =========================================================== -->
     <build>
         <plugins>
+
+            <!-- Compiler + annotation processors -->
             <plugin>
                 <groupId>org.apache.maven.plugins</groupId>
                 <artifactId>maven-compiler-plugin</artifactId>
@@ -108,6 +205,8 @@
                     </annotationProcessorPaths>
                 </configuration>
             </plugin>
+
+            <!-- Spring Boot fat JAR -->
             <plugin>
                 <groupId>org.springframework.boot</groupId>
                 <artifactId>spring-boot-maven-plugin</artifactId>
@@ -120,7 +219,162 @@
                     </excludes>
                 </configuration>
             </plugin>
+
+            <!-- Enforce minimum Java & Maven versions, ban duplicate dependencies -->
+            <plugin>
+                <groupId>org.apache.maven.plugins</groupId>
+                <artifactId>maven-enforcer-plugin</artifactId>
+                <version>${maven-enforcer-plugin.version}</version>
+                <executions>
+                    <execution>
+                        <id>enforce-versions</id>
+                        <goals>
+                            <goal>enforce</goal>
+                        </goals>
+                        <configuration>
+                            <rules>
+                                <requireJavaVersion>
+                                    <version>[25,)</version>
+                                    <message>Java 25 or higher is required.</message>
+                                </requireJavaVersion>
+                                <requireMavenVersion>
+                                    <version>[3.9,)</version>
+                                    <message>Maven 3.9 or higher is required.</message>
+                                </requireMavenVersion>
+                                <banDuplicatePomDependencyVersions/>
+                                <dependencyConvergence/>
+                            </rules>
+                        </configuration>
+                    </execution>
+                </executions>
+            </plugin>
+
+            <!-- Attach sources JAR -->
+            <plugin>
+                <groupId>org.apache.maven.plugins</groupId>
+                <artifactId>maven-source-plugin</artifactId>
+                <version>${maven-source-plugin.version}</version>
+                <executions>
+                    <execution>
+                        <id>attach-sources</id>
+                        <phase>verify</phase>
+                        <goals>
+                            <goal>jar-no-fork</goal>
+                        </goals>
+                    </execution>
+                </executions>
+            </plugin>
+
+            <!-- Attach Javadoc JAR -->
+            <plugin>
+                <groupId>org.apache.maven.plugins</groupId>
+                <artifactId>maven-javadoc-plugin</artifactId>
+                <version>${maven-javadoc-plugin.version}</version>
+                <configuration>
+                    <encoding>${project.build.sourceEncoding}</encoding>
+                    <locale>en</locale>
+                    <quiet>true</quiet>
+                    <failOnError>false</failOnError>
+                </configuration>
+                <executions>
+                    <execution>
+                        <id>attach-javadocs</id>
+                        <phase>verify</phase>
+                        <goals>
+                            <goal>jar</goal>
+                        </goals>
+                    </execution>
+                </executions>
+            </plugin>
+
+            <!-- Code coverage with JaCoCo -->
+            <plugin>
+                <groupId>org.jacoco</groupId>
+                <artifactId>jacoco-maven-plugin</artifactId>
+                <version>${jacoco-maven-plugin.version}</version>
+                <executions>
+                    <execution>
+                        <id>prepare-agent</id>
+                        <goals>
+                            <goal>prepare-agent</goal>
+                        </goals>
+                    </execution>
+                    <execution>
+                        <id>report</id>
+                        <phase>verify</phase>
+                        <goals>
+                            <goal>report</goal>
+                        </goals>
+                    </execution>
+                    <execution>
+                        <id>check</id>
+                        <phase>verify</phase>
+                        <goals>
+                            <goal>check</goal>
+                        </goals>
+                        <configuration>
+                            <rules>
+                                <rule>
+                                    <element>BUNDLE</element>
+                                    <limits>
+                                        <limit>
+                                            <counter>LINE</counter>
+                                            <value>COVEREDRATIO</value>
+                                            <minimum>${jacoco.minimum.coverage}</minimum>
+                                        </limit>
+                                    </limits>
+                                </rule>
+                            </rules>
+                        </configuration>
+                    </execution>
+                </executions>
+            </plugin>
+
+            <!-- Code formatting with Spotless (Google Java Format) -->
+            <plugin>
+                <groupId>com.diffplug.spotless</groupId>
+                <artifactId>spotless-maven-plugin</artifactId>
+                <version>${spotless-maven-plugin.version}</version>
+                <configuration>
+                    <java>
+                        <googleJavaFormat>
+                            <version>1.34.1</version>
+                            <style>GOOGLE</style>
+                        </googleJavaFormat>
+                        <removeUnusedImports/>
+                        <trimTrailingWhitespace/>
+                        <endWithNewline/>
+                    </java>
+                    <pom>
+                        <sortPom>
+                            <encoding>${project.build.sourceEncoding}</encoding>
+                            <keepBlankLines>true</keepBlankLines>
+                            <nrOfIndentSpace>4</nrOfIndentSpace>
+                            <expandEmptyElements>false</expandEmptyElements>
+                        </sortPom>
+                    </pom>
+                </configuration>
+                <executions>
+                    <execution>
+                        <id>spotless-check</id>
+                        <phase>verify</phase>
+                        <goals>
+                            <goal>check</goal>
+                        </goals>
+                    </execution>
+                </executions>
+            </plugin>
+
+            <!-- Check for dependency / plugin updates -->
+            <plugin>
+                <groupId>org.codehaus.mojo</groupId>
+                <artifactId>versions-maven-plugin</artifactId>
+                <version>${versions-maven-plugin.version}</version>
+                <configuration>
+                    <generateBackupPoms>false</generateBackupPoms>
+                </configuration>
+            </plugin>
+
         </plugins>
     </build>
-
 </project>
