@@ -2,11 +2,13 @@ package dz.anisbouhadida.medzloader.infrastructure.jdbc.repository;
 
 import lombok.RequiredArgsConstructor;
 import org.springframework.dao.EmptyResultDataAccessException;
-import org.springframework.jdbc.core.namedparam.MapSqlParameterSource;
 import org.springframework.jdbc.core.namedparam.NamedParameterJdbcTemplate;
 import org.springframework.stereotype.Repository;
 
 import java.util.Optional;
+
+import static dz.anisbouhadida.medzloader.batch.support.utils.MedicineSqlUtils.compositeKeyParams;
+import static dz.anisbouhadida.medzloader.batch.support.utils.MedicineSqlUtils.loadSql;
 
 /// JDBC implementation of [MedicineRepository].
 ///
@@ -25,16 +27,7 @@ import java.util.Optional;
 @RequiredArgsConstructor
 class JdbcMedicineRepository implements MedicineRepository {
 
-    private static final String FIND_VERSION_SQL = """
-            SELECT version
-            FROM   medicine
-            WHERE  registration_number = :registrationNumber
-              AND  (code IS NOT DISTINCT FROM :code)
-              AND  (icd  IS NOT DISTINCT FROM :icd)
-              AND  (brand_name IS NOT DISTINCT FROM :brandName)
-              AND  (laboratory_holder IS NOT DISTINCT FROM :laboratoryHolder)
-            LIMIT  1
-            """;
+    private static final String FIND_VERSION_SQL = loadSql("sql/read/medicine-find-version.sql");
 
     private final NamedParameterJdbcTemplate jdbcTemplate;
 
@@ -50,12 +43,7 @@ class JdbcMedicineRepository implements MedicineRepository {
             String brandName,
             String laboratoryHolder
     ) {
-        var params = new MapSqlParameterSource()
-                .addValue("registrationNumber", registrationNumber)
-                .addValue("code", code)
-                .addValue("icd", internationalCommonDenomination)
-                .addValue("brandName", brandName)
-                .addValue("laboratoryHolder", laboratoryHolder);
+        var params = compositeKeyParams(registrationNumber, code, internationalCommonDenomination, brandName, laboratoryHolder);
         try {
             var version = jdbcTemplate.queryForObject(FIND_VERSION_SQL, params, Integer.class);
             return Optional.ofNullable(version);
