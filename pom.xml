@@ -12,7 +12,7 @@
 
     <groupId>dz.anisbouhadida</groupId>
     <artifactId>medz-loader</artifactId>
-    <version>0.2.0</version>
+    <version>0.2.1-SNAPSHOT</version>
     <packaging>jar</packaging>
 
     <name>medz-loader</name>
