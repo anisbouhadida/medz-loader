@@ -26,22 +26,22 @@ class MedicineLineMapperDefaultMethodsTest {
 
         mapper = new MedicineLineMapper() {
             @Override
-            public dz.anisbouhadida.medzloader.domain.model.Medicine toMedicine(dz.anisbouhadida.medzloader.batch.dto.MedicineLine line) {
+            public dz.anisbouhadida.medzloader.domain.model.Medicine toMedicine(dz.anisbouhadida.medzloader.batch.dto.MedicineLine line, dz.anisbouhadida.medzloader.domain.api.MedicineApi medicineApi) {
                 return null;
             }
 
             @Override
-            public dz.anisbouhadida.medzloader.domain.model.NomenclatureEvent toMedicineEvent(dz.anisbouhadida.medzloader.batch.dto.NomenclatureLine line) {
+            public dz.anisbouhadida.medzloader.domain.model.NomenclatureEvent toMedicineEvent(dz.anisbouhadida.medzloader.batch.dto.NomenclatureLine line, dz.anisbouhadida.medzloader.domain.api.MedicineApi medicineApi) {
                 return null;
             }
 
             @Override
-            public dz.anisbouhadida.medzloader.domain.model.WithdrawalEvent toMedicineEvent(dz.anisbouhadida.medzloader.batch.dto.WithdrawalLine line) {
+            public dz.anisbouhadida.medzloader.domain.model.WithdrawalEvent toMedicineEvent(dz.anisbouhadida.medzloader.batch.dto.WithdrawalLine line, dz.anisbouhadida.medzloader.domain.api.MedicineApi medicineApi) {
                 return null;
             }
 
             @Override
-            public dz.anisbouhadida.medzloader.domain.model.NonRenewalEvent toMedicineEvent(dz.anisbouhadida.medzloader.batch.dto.NonRenewalLine line) {
+            public dz.anisbouhadida.medzloader.domain.model.NonRenewalEvent toMedicineEvent(dz.anisbouhadida.medzloader.batch.dto.NonRenewalLine line, dz.anisbouhadida.medzloader.domain.api.MedicineApi medicineApi) {
                 return null;
             }
         };

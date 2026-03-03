@@ -4,12 +4,14 @@ import dz.anisbouhadida.medzloader.batch.dto.MedicineLine;
 import dz.anisbouhadida.medzloader.batch.dto.NomenclatureLine;
 import dz.anisbouhadida.medzloader.batch.dto.NonRenewalLine;
 import dz.anisbouhadida.medzloader.batch.dto.WithdrawalLine;
+import dz.anisbouhadida.medzloader.domain.api.MedicineApi;
 import dz.anisbouhadida.medzloader.domain.model.Medicine;
 import dz.anisbouhadida.medzloader.domain.model.NomenclatureEvent;
 import dz.anisbouhadida.medzloader.domain.model.NonRenewalEvent;
 import dz.anisbouhadida.medzloader.domain.model.WithdrawalEvent;
 import dz.anisbouhadida.medzloader.domain.model.enums.MedicineOrigin;
 import dz.anisbouhadida.medzloader.domain.model.enums.MedicineType;
+import org.mapstruct.Context;
 import org.mapstruct.Mapper;
 import org.mapstruct.Mapping;
 import org.mapstruct.Named;
@@ -20,6 +22,7 @@ import java.time.format.DateTimeFormatter;
 /// MapStruct mapper that converts [MedicineLine] DTOs into domain model objects.
 ///
 /// Handles the three CSV formats read by the batch pipeline:
+///
 /// - [NomenclatureLine] → [NomenclatureEvent]
 /// - [WithdrawalLine]   → [WithdrawalEvent]
 /// - [NonRenewalLine]   → [NonRenewalEvent]
@@ -29,10 +32,13 @@ import java.time.format.DateTimeFormatter;
 ///
 /// @author Anis Bouhadida
 /// @since 0.0.1
+/// @version 0.2.0
 @Mapper
 public interface MedicineLineMapper {
 
     /// Date-time formatter for the raw `yyyy-MM-dd HH:mm:ss` strings found in the CSV files.
+    ///
+    /// Used by [#parseDate(String)] to parse registration and event date columns.
     DateTimeFormatter DATE_FORMATTER =
             DateTimeFormatter.ofPattern("yyyy-MM-dd HH:mm:ss");
 
@@ -59,7 +65,8 @@ public interface MedicineLineMapper {
     @Mapping(target = "initialRegistrationDate", expression = "java(parseDate(line.initialRegistrationDate()))")
     @Mapping(target = "type", expression = "java(toMedicineType(line.type()))")
     @Mapping(target = "origin", expression = "java(toMedicineOrigin(line.status()))")
-    Medicine toMedicine(MedicineLine line);
+    @Mapping(target = "version", expression = "java(medicineApi.getMedicineVersionByRegistrationNumber(line.registrationNumber(), line.code(), line.internationalCommonName(), line.brandName(), line.registrationHolderLaboratory()))")
+    Medicine toMedicine(MedicineLine line, @Context MedicineApi medicineApi);
 
     /// Converts a [NomenclatureLine] into a [NomenclatureEvent].
     ///
@@ -69,7 +76,7 @@ public interface MedicineLineMapper {
     /// @return a [NomenclatureEvent] wrapping the mapped medicine and event fields
     @Mapping(target = "medicine", source = ".", qualifiedByName = "toMedicine")
     @Mapping(target = "observations", source = "obs")
-    NomenclatureEvent toMedicineEvent(NomenclatureLine line);
+    NomenclatureEvent toMedicineEvent(NomenclatureLine line, @Context MedicineApi medicineApi);
 
     /// Converts a [WithdrawalLine] into a [WithdrawalEvent].
     ///
@@ -78,7 +85,7 @@ public interface MedicineLineMapper {
     /// @param line the withdrawal DTO to convert
     /// @return a [WithdrawalEvent] wrapping the mapped medicine and withdrawal fields
     @Mapping(target = "medicine", source = ".", qualifiedByName = "toMedicine")
-    WithdrawalEvent toMedicineEvent(WithdrawalLine line);
+    WithdrawalEvent toMedicineEvent(WithdrawalLine line, @Context MedicineApi medicineApi);
 
     /// Converts a [NonRenewalLine] into a [NonRenewalEvent].
     ///
@@ -88,7 +95,7 @@ public interface MedicineLineMapper {
     /// @return a [NonRenewalEvent] wrapping the mapped medicine and non-renewal fields
     @Mapping(target = "medicine", source = ".", qualifiedByName = "toMedicine")
     @Mapping(target = "observations", source = "obs")
-    NonRenewalEvent toMedicineEvent(NonRenewalLine line);
+    NonRenewalEvent toMedicineEvent(NonRenewalLine line, @Context MedicineApi medicineApi);
 
     /// Parses a raw date string in `yyyy-MM-dd HH:mm:ss` format into a [LocalDateTime].
     ///

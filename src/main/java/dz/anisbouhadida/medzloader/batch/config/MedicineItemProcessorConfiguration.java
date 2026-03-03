@@ -5,9 +5,11 @@ import dz.anisbouhadida.medzloader.batch.dto.NomenclatureLine;
 import dz.anisbouhadida.medzloader.batch.dto.NonRenewalLine;
 import dz.anisbouhadida.medzloader.batch.dto.WithdrawalLine;
 import dz.anisbouhadida.medzloader.batch.support.mapper.MedicineLineMapper;
-import dz.anisbouhadida.medzloader.batch.support.mapper.MedicineLineMapperImpl;
+import dz.anisbouhadida.medzloader.domain.api.MedicineApi;
 import dz.anisbouhadida.medzloader.domain.model.MedicineEvent;
 import dz.anisbouhadida.medzloader.domain.model.NomenclatureEvent;
+import lombok.RequiredArgsConstructor;
+import org.mapstruct.factory.Mappers;
 import org.springframework.batch.infrastructure.item.ItemProcessor;
 import org.springframework.batch.infrastructure.item.support.ClassifierCompositeItemProcessor;
 import org.springframework.batch.infrastructure.item.support.CompositeItemProcessor;
@@ -27,8 +29,12 @@ import java.util.List;
 ///
 /// @author Anis Bouhadida
 /// @since 0.0.1
+/// @version 0.2.0
 @Configuration
+@RequiredArgsConstructor
 public class MedicineItemProcessorConfiguration {
+
+    private final MedicineApi medicineApi;
 
     /// Creates a [CompositeItemProcessor] that first applies bean validation,
     /// then delegates the transformation to a [ClassifierCompositeItemProcessor]
@@ -95,7 +101,7 @@ public class MedicineItemProcessorConfiguration {
     /// @return an [ItemProcessor] converting [NomenclatureLine] to [NomenclatureEvent].
     @Bean
     protected ItemProcessor<NomenclatureLine, NomenclatureEvent> nomenclatureItemProcessor() {
-        return medicineLineMapper()::toMedicineEvent;
+        return line -> medicineLineMapper().toMedicineEvent(line, medicineApi);
     }
 
     /// Processor that transforms a [WithdrawalLine] into a [MedicineEvent].
@@ -103,7 +109,7 @@ public class MedicineItemProcessorConfiguration {
     /// @return an [ItemProcessor] converting [WithdrawalLine] to [MedicineEvent].
     @Bean
     protected ItemProcessor<WithdrawalLine, MedicineEvent> withdrawalItemProcessor() {
-        return medicineLineMapper()::toMedicineEvent;
+        return line -> medicineLineMapper().toMedicineEvent(line, medicineApi);
     }
 
     /// Processor that transforms a [NonRenewalLine] into a [MedicineEvent].
@@ -111,7 +117,7 @@ public class MedicineItemProcessorConfiguration {
     /// @return an [ItemProcessor] converting [NonRenewalLine] to [MedicineEvent].
     @Bean
     protected ItemProcessor<NonRenewalLine, MedicineEvent> nonRenewalItemProcessor() {
-        return medicineLineMapper()::toMedicineEvent;
+        return line -> medicineLineMapper().toMedicineEvent(line, medicineApi);
     }
 
     /// Provides the mapper implementation that converts lines to domain events.
@@ -119,6 +125,6 @@ public class MedicineItemProcessorConfiguration {
     /// @return an instance of [MedicineLineMapper].
     @Bean
     protected MedicineLineMapper medicineLineMapper() {
-        return new MedicineLineMapperImpl();
+        return Mappers.getMapper(MedicineLineMapper.class);
     }
 }
