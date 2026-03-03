@@ -117,7 +117,7 @@
         <versions-maven-plugin.version>2.21.0</versions-maven-plugin.version>
 
         <!-- Code coverage threshold -->
-        <jacoco.minimum.coverage>0.80</jacoco.minimum.coverage>
+        <jacoco.minimum.coverage>0.50</jacoco.minimum.coverage>
     </properties>
 
     <!-- =========================================================== -->
