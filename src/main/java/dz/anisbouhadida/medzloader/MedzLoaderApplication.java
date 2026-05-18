@@ -1,6 +1,6 @@
 package dz.anisbouhadida.medzloader;
 
-import dz.anisbouhadida.medzloader.config.MedzLoaderProperties;
+import dz.anisbouhadida.medzloader.batch.support.properties.MedzLoaderProperties;
 import org.springframework.boot.SpringApplication;
 import org.springframework.boot.autoconfigure.SpringBootApplication;
 import org.springframework.boot.context.properties.EnableConfigurationProperties;

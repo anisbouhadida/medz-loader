@@ -1,9 +1,9 @@
-package dz.anisbouhadida.medzloader.batch.reader;
+package dz.anisbouhadida.medzloader.batch.support.factory;
 
 import dz.anisbouhadida.medzloader.batch.dto.NomenclatureLine;
 import dz.anisbouhadida.medzloader.batch.dto.NonRenewalLine;
 import dz.anisbouhadida.medzloader.batch.dto.WithdrawalLine;
-import dz.anisbouhadida.medzloader.batch.support.constant.MedicineCsvColumns;
+import dz.anisbouhadida.medzloader.batch.dto.constant.MedicineCsvColumns;
 import org.springframework.batch.infrastructure.item.file.FlatFileItemReader;
 import org.springframework.batch.infrastructure.item.file.builder.FlatFileItemReaderBuilder;
 import org.springframework.batch.infrastructure.item.file.mapping.RecordFieldSetMapper;

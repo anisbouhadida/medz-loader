@@ -7,6 +7,8 @@ import static org.mockito.Mockito.when;
 import dz.anisbouhadida.medzloader.batch.dto.NomenclatureLine;
 import dz.anisbouhadida.medzloader.batch.dto.NonRenewalLine;
 import dz.anisbouhadida.medzloader.batch.dto.WithdrawalLine;
+import dz.anisbouhadida.medzloader.batch.support.classifier.MedicineItemReaderClassifier;
+import dz.anisbouhadida.medzloader.batch.support.factory.MedicineItemReaderFactory;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Nested;

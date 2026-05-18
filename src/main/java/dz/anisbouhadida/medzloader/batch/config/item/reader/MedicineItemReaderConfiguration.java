@@ -1,12 +1,10 @@
-package dz.anisbouhadida.medzloader.batch.config;
+package dz.anisbouhadida.medzloader.batch.config.item.reader;
 
 import dz.anisbouhadida.medzloader.batch.dto.MedicineLine;
 import dz.anisbouhadida.medzloader.batch.reader.FileAwareMedicineItemReader;
-import dz.anisbouhadida.medzloader.batch.reader.MedicineItemReaderClassifier;
-import dz.anisbouhadida.medzloader.batch.reader.MedicineItemReaderFactory;
-import dz.anisbouhadida.medzloader.config.MedzLoaderProperties;
-import java.io.IOException;
-import java.nio.file.Path;
+import dz.anisbouhadida.medzloader.batch.support.classifier.MedicineItemReaderClassifier;
+import dz.anisbouhadida.medzloader.batch.support.factory.MedicineItemReaderFactory;
+import dz.anisbouhadida.medzloader.batch.support.properties.MedzLoaderProperties;
 import lombok.RequiredArgsConstructor;
 import org.springframework.batch.infrastructure.item.file.MultiResourceItemReader;
 import org.springframework.batch.infrastructure.item.file.ResourceAwareItemReaderItemStream;
@@ -14,6 +12,9 @@ import org.springframework.batch.infrastructure.item.file.builder.MultiResourceI
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
 import org.springframework.core.io.support.PathMatchingResourcePatternResolver;
+
+import java.io.IOException;
+import java.nio.file.Path;
 
 /// Spring configuration that assembles the reader pipeline for medicine CSV files.
 ///
@@ -54,7 +55,7 @@ public class MedicineItemReaderConfiguration {
 
   /// Creates a [MultiResourceItemReader] that discovers every `*.csv` file
   /// under the directory defined by `medz.loader.input-dir` and feeds
-  /// them one by one to the [#fileAwareMedicineItemReader()] delegate.
+  /// them one by one to the [#fileAwareMedicineItemReader(MedicineItemReaderClassifier)] delegate.
   ///
   /// @param fileAwareMedicineItemReader the resource-aware delegate reader that processes each
   /// individual CSV file

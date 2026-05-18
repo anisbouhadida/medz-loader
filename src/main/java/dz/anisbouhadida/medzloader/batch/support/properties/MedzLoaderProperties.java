@@ -1,4 +1,4 @@
-package dz.anisbouhadida.medzloader.config;
+package dz.anisbouhadida.medzloader.batch.support.properties;
 
 import jakarta.validation.constraints.NotBlank;
 import jakarta.validation.constraints.NotNull;
