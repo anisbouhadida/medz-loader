@@ -2,11 +2,10 @@ package dz.anisbouhadida.medzloader.domain.model;
 
 import dz.anisbouhadida.medzloader.domain.model.enums.MedicineOrigin;
 import dz.anisbouhadida.medzloader.domain.model.enums.MedicineType;
-import lombok.NonNull;
-
 import java.sql.Timestamp;
 import java.time.LocalDateTime;
 import java.time.ZoneId;
+import lombok.NonNull;
 
 /// Represents a registered medicine with all its regulatory information.
 ///
@@ -52,25 +51,27 @@ public record Medicine(
     MedicineOrigin origin,
     int version) {
 
-    /// Converts the initial registration date to a SQL timestamp in the provided time zone.
-    ///
-    /// @param zoneId time zone used to convert the stored local date-time
-    /// @return the converted timestamp, or `null` when no initial registration date is available
-    public Timestamp initialRegistrationDate(@NonNull ZoneId zoneId) {
-        return this.initialRegistrationDate == null ? null : Timestamp.from(this.initialRegistrationDate.atZone(zoneId).toInstant());
-    }
+  /// Converts the initial registration date to a SQL timestamp in the provided time zone.
+  ///
+  /// @param zoneId time zone used to convert the stored local date-time
+  /// @return the converted timestamp, or `null` when no initial registration date is available
+  public Timestamp initialRegistrationDate(@NonNull ZoneId zoneId) {
+    return this.initialRegistrationDate == null
+        ? null
+        : Timestamp.from(this.initialRegistrationDate.atZone(zoneId).toInstant());
+  }
 
-    /// Returns the medicine type name as a string.
-    ///
-    /// @return the enum name of the medicine type, or `null` when the type is not defined
-    public String typeToString() {
-        return this.type == null ? null : this.type.name();
-    }
+  /// Returns the medicine type name as a string.
+  ///
+  /// @return the enum name of the medicine type, or `null` when the type is not defined
+  public String typeToString() {
+    return this.type == null ? null : this.type.name();
+  }
 
-    /// Returns the medicine origin name as a string.
-    ///
-    /// @return the enum name of the medicine origin, or `null` when the origin is not defined
-    public String originToString() {
-        return this.origin == null ? null : this.origin.name();
-    }
+  /// Returns the medicine origin name as a string.
+  ///
+  /// @return the enum name of the medicine origin, or `null` when the origin is not defined
+  public String originToString() {
+    return this.origin == null ? null : this.origin.name();
+  }
 }

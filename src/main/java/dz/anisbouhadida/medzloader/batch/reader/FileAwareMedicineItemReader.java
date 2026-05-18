@@ -1,9 +1,8 @@
 package dz.anisbouhadida.medzloader.batch.reader;
 
 import dz.anisbouhadida.medzloader.batch.dto.MedicineLine;
-import java.util.Objects;
-
 import dz.anisbouhadida.medzloader.batch.support.classifier.MedicineItemReaderClassifier;
+import java.util.Objects;
 import lombok.RequiredArgsConstructor;
 import org.jspecify.annotations.NonNull;
 import org.jspecify.annotations.Nullable;
