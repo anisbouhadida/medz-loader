@@ -1,151 +1,388 @@
 # medz-loader
 
-Open-source Spring Batch ETL that loads official Algerian medicine nomenclature CSV files (additions, non-renewals, withdrawals) into a normalized PostgreSQL schema with versioned status and event history.
+![License: Apache-2.0](https://img.shields.io/badge/License-Apache%202.0-blue.svg)
+![Java 25](https://img.shields.io/badge/Java-25-orange.svg)
+![Spring Boot 4](https://img.shields.io/badge/Spring%20Boot-4.0.6-6DB33F.svg)
+[![CI](https://github.com/anisbouhadida/medz-loader/actions/workflows/ci.yml/badge.svg?branch=main)](https://github.com/anisbouhadida/medz-loader/actions/workflows/ci.yml)
+
+`medz-loader` is an open-source Spring Batch ETL that loads official Algerian medicine CSV releases into a normalized PostgreSQL schema with versioned status and event history.
+
+It is part of the broader **Medz** ecosystem: a community-oriented effort to make Algerian medicine data easier to extract, normalize, load, and reuse in reliable developer-friendly systems.
+
+This project is built for **Algerian developers**, open data contributors, civic tech builders, and anyone who wants reproducible medicine ingestion pipelines instead of one-off scripts.
+
+---
+
+## Table of Contents
+
+- [Why this project](#why-this-project)
+- [Where `medz-loader` fits in Medz](#where-medz-loader-fits-in-medz)
+- [Project status](#project-status)
+- [Features](#features)
+- [Input contract](#input-contract)
+- [Quick start](#quick-start)
+  - [1) Prerequisites](#1-prerequisites)
+  - [2) Clone and build](#2-clone-and-build)
+  - [3) Prepare PostgreSQL](#3-prepare-postgresql)
+  - [4) Configure the loader](#4-configure-the-loader)
+  - [5) Add input files](#5-add-input-files)
+  - [6) Run the batch job](#6-run-the-batch-job)
+- [How it works](#how-it-works)
+- [Database model](#database-model)
+- [Configuration](#configuration)
+- [Project structure](#project-structure)
+- [Quality and CI](#quality-and-ci)
+- [Contributing](#contributing)
+- [Community note](#community-note)
+- [License](#license)
+
+---
+
+## Why this project
+
+Official Algerian medicine releases are useful, but they are not immediately convenient for application development, analytics, or historical tracking.
+
+Developers often need more than raw files:
+
+- a stable ingestion workflow,
+- a consistent naming contract,
+- a queryable relational schema,
+- version-aware updates across release cycles,
+- and a clear separation between extraction, normalization, and persistence.
+
+`medz-loader` exists to make that ingestion step explicit and reusable.
+
+Instead of treating every release as an ad hoc import, this project turns CSV releases into a durable PostgreSQL dataset that other Medz components and community projects can build on.
+
+---
+
+## Where `medz-loader` fits in Medz
+
+The Medz vision is bigger than a single repository.
+
+Today, the ecosystem already has a clear upstream/downstream flow:
+
+1. [`medz-extractor`](https://github.com/anisbouhadida/medz-extractor) converts official Excel nomenclature files into clean CSV outputs.
+2. `medz-loader` consumes those CSV files and writes them into a normalized PostgreSQL schema.
+3. [`medz-gql-api`](https://github.com/anisbouhadida/medz-gql-api) exposes that normalized dataset through a Spring Boot GraphQL API.
+4. [`medz-explorer`](https://github.com/anisbouhadida/medz-explorer) provides an Angular frontend to explore the data and try the API.
+5. Other Medz services, dashboards, and community tools can build on top of the same shared data foundation instead of parsing source files directly.
+
+In other words:
+
+```text
+Official source files -> medz-extractor -> CSV contract -> medz-loader -> PostgreSQL -> medz-gql-api -> medz-explorer and downstream Medz apps
+```
+
+If you are an Algerian developer building search tools, APIs, dashboards, or public-interest data products, this repository is meant to be a dependable ingestion building block.
+
+---
+
+## Project status
+
+The Medz ecosystem is still a **work in progress**.
+
+Today, the main building blocks already exist:
+
+- extraction with [`medz-extractor`](https://github.com/anisbouhadida/medz-extractor),
+- loading and normalization with `medz-loader`,
+- querying through [`medz-gql-api`](https://github.com/anisbouhadida/medz-gql-api),
+- and frontend exploration with [`medz-explorer`](https://github.com/anisbouhadida/medz-explorer).
+
+The overall direction is clear: move from a solid open-source prototype ecosystem toward a production-ready public platform for Algerian medicine data.
+
+That means some parts are still evolving, contracts may continue to improve, and documentation will keep being refined as the system gets closer to a production release.
+
+---
 
 ## Features
 
-- Discovers and processes all `*.csv` files under a configurable input directory.
-- Supports official nomenclature, non-renewal, and withdrawal CSV formats.
-- Validates and maps CSV rows into strongly typed domain models and events.
-- Uses Spring Batch chunk-oriented processing with multi-resource readers.
-- Persists data into a normalized PostgreSQL schema with:
-  - `medicine` master table.
-  - `medicine_status_history` for status evolution.
-  - `nomenclature_event`, `non_renewal_event`, and `withdrawal_event` event tables.
-  - `medicine_event_history` as a generic event log.
-- Hexagonal/domain-driven design separating domain, batch, and infrastructure concerns.
+- Recursive discovery of all `*.csv` files under a configurable input directory.
+- Support for the 3 expected medicine release file types:
+  - `nomenclature.csv`
+  - `non_renouveles.csv`
+  - `retraits.csv`
+- Filename-based reader classification using the file name contract already used across Medz.
+- Bean Validation filtering for invalid rows without aborting the whole batch.
+- Mapping from CSV DTOs to immutable domain records and sealed event types.
+- Chunk-oriented Spring Batch processing.
+- Normalized PostgreSQL persistence with:
+  - `medicine`
+  - `medicine_status_history`
+  - `nomenclature_event`
+  - `non_renewal_event`
+  - `withdrawal_event`
+  - `medicine_event_history`
+- Optimistic version-aware medicine upserts.
+- CI workflow with build, tests, formatting checks, and PostgreSQL-backed verification.
 
-## Architecture
+---
 
-The application is built with Spring Boot and Spring Batch and follows a hexagonal/domain-driven design:
+## Input contract
 
-- **Domain layer**: immutable domain records (`Medicine`, `MedicineEvent`, `NomenclatureEvent`, etc.), service interfaces (`MedicineApi`) and ports (`MedicinePort`).
-- **Batch layer**: readers, processors, and writers for CSV files and medicine events.
-- **Infrastructure layer**: JDBC-based persistence, SQL scripts, and PostgreSQL-specific DDL.
+`medz-loader` is intentionally strict about the CSV contract it consumes.
 
-### Batch pipeline
+For each release cycle, the recommended layout is:
 
-At a high level, the ETL job works as follows:
+```text
+input/YYYY-MM/
+├── nomenclature.csv
+├── non_renouveles.csv
+└── retraits.csv
+```
 
-1. A multi-resource CSV reader discovers all input files under `medz.loader.input-dir`.
-2. A classifier chooses the correct flat-file reader per file type (nomenclature, non-renewals, withdrawals).
-3. Rows are validated and mapped into domain events.
-4. A composite JDBC writer:
-   - Upserts the `medicine` master row using a composite business key.
-   - Records status transitions in `medicine_status_history`.
-   - Routes events to type-specific writers (`nomenclature_event`, `non_renewal_event`, `withdrawal_event`).
-   - Appends an entry to `medicine_event_history`.
+The loader scans recursively, so the `YYYY-MM` directory name is a project convention rather than a hard runtime requirement. What **does** matter is the filename contract:
 
-The PostgreSQL schema and enum types are defined in `src/main/resources/sql/ddl.sql`.
+- filenames containing `nomenclature` are treated as nomenclature updates,
+- filenames containing `non_renouveles` are treated as non-renewals,
+- filenames containing `retraits` are treated as withdrawals.
 
-## Tech stack
+This contract matches the outputs generated by [`medz-extractor`](https://github.com/anisbouhadida/medz-extractor), making the two repositories work well together.
 
-- Java 25
-- Spring Boot 4 (Spring Batch, validation, JDBC)
-- PostgreSQL
-- MapStruct for mapping CSV DTOs to domain models
-- Lombok for boilerplate reduction
+If a CSV file does not match one of those filename patterns, the loader cannot classify it.
 
-## Getting started
+---
 
-### Prerequisites
+## Quick start
+
+### 1) Prerequisites
 
 - Java 25
 - Maven 3.9+
-- PostgreSQL instance (local or remote)
+- PostgreSQL
 
-### Clone and build
+### 2) Clone and build
 
 ```bash
 git clone https://github.com/anisbouhadida/medz-loader.git
 cd medz-loader
-mvn clean package
+./mvnw clean verify
 ```
 
-### Configure database
+### 3) Prepare PostgreSQL
 
-Create a PostgreSQL database (for example `medz`) and a user with access to it, then configure the connection in `src/main/resources/application.properties` or via environment variables:
+Create a database, for example `medz`, then apply the application schema from `src/main/resources/sql/ddl.sql`.
+
+Example:
+
+```bash
+createdb medz
+psql -d medz -f src/main/resources/sql/ddl.sql
+```
+
+Notes:
+
+- `spring.batch.jdbc.initialize-schema=always` initializes the **Spring Batch metadata tables**.
+- The medicine business schema is defined in `src/main/resources/sql/ddl.sql` and should be applied explicitly.
+
+### 4) Configure the loader
+
+Default runtime properties live in `src/main/resources/application.properties`:
 
 ```properties
 spring.datasource.url=jdbc:postgresql://localhost:5432/medz
 spring.datasource.username=postgres
 spring.datasource.password=password
 spring.batch.jdbc.initialize-schema=always
-```
 
-The DDL for the medicine schema is provided in `src/main/resources/sql/ddl.sql`. You can apply it manually or integrate it into your migration tool.
-
-### Configure input directory
-
-The application reads CSV files from a base directory configured via the `medz.loader` namespace:
-
-```properties
 medz.loader.input-dir=./input
 medz.loader.registration-zone-id=Africa/Algiers
 ```
 
-These properties can be overridden using environment variables:
+You can override the Medz-specific properties with environment variables:
 
 - `MEDZ_LOADER_INPUT_DIR`
 - `MEDZ_LOADER_REGISTRATION_ZONE_ID`
 
-Place your CSV files in the configured directory. The expected filenames (by convention) are typically:
+### 5) Add input files
 
-- `nomenclature.csv`
-- `non_renouveles.csv`
-- `retraits.csv`
+Add release-cycle CSVs under the configured input directory.
 
-The multi-resource reader will recursively process all `*.csv` files in the folder.
+Example:
 
-### Run the ETL job
-
-You can run the application using Maven:
-
-```bash
-mvn spring-boot:run
+```text
+input/
+└── 2025-11/
+    ├── nomenclature.csv
+    ├── non_renouveles.csv
+    └── retraits.csv
 ```
 
-or by running the packaged jar:
+### 6) Run the batch job
+
+Run with Maven:
+
+```bash
+./mvnw spring-boot:run
+```
+
+Or run the packaged JAR:
 
 ```bash
 java -jar target/medz-loader-*.jar
 ```
 
-Spring Batch will start the configured job, which reads the CSV files and populates the PostgreSQL database.
+On startup, Spring Batch launches the configured job, scans the input directory recursively, and persists recognized medicine events into PostgreSQL.
 
-## Configuration properties
+---
 
-Key configuration properties exposed via `MedzLoaderProperties`:
+## How it works
 
-- `medz.loader.input-dir` – path to the directory containing input CSV files.
-- `medz.loader.registration-zone-id` – time zone used to convert registration dates to UTC timestamps.
+At a high level, the ETL pipeline is:
 
-## Directory structure
+1. A `MultiResourceItemReader` discovers every `**/*.csv` under `medz.loader.input-dir`.
+2. `FileAwareMedicineItemReader` switches delegate readers based on the current filename.
+3. A `BeanValidatingItemProcessor` filters invalid rows instead of failing the whole job.
+4. A classifier-based processor maps each CSV line into a sealed domain event:
+   - `NomenclatureEvent`
+   - `NonRenewalEvent`
+   - `WithdrawalEvent`
+5. The writer pipeline then:
+   - upserts the `medicine` row,
+   - records the current status in `medicine_status_history`,
+   - writes the event-specific table,
+   - appends to `medicine_event_history`.
+
+### Important runtime conventions
+
+- **Filename-driven behavior**: `nomenclature`, `non_renouveles`, and `retraits` are part of the runtime contract.
+- **Composite business key**: medicine identity is based on `(registration_number, code, icd, brand_name, laboratory_holder)`.
+- **Optimistic versioning**: updates depend on the current stored version matching the incoming version.
+- **Validation failures are filtered**: invalid rows are skipped rather than treated as fatal job errors.
+
+---
+
+## Database model
+
+The database schema lives in `src/main/resources/sql/ddl.sql`.
+
+Main tables:
+
+- `medicine`: master record for a medicine definition.
+- `medicine_status_history`: tracks distinct status states over time.
+- `nomenclature_event`: event-specific nomenclature payload.
+- `non_renewal_event`: event-specific non-renewal payload.
+- `withdrawal_event`: event-specific withdrawal payload.
+- `medicine_event_history`: generic event log across event types.
+
+The schema is designed for normalized storage and repeatable ingestion across multiple release cycles.
+
+---
+
+## Configuration
+
+The main typed properties are exposed through `MedzLoaderProperties`:
+
+- `medz.loader.input-dir`: base directory scanned recursively for CSV files.
+- `medz.loader.registration-zone-id`: source timezone used to convert registration dates to UTC timestamps for storage.
+
+Default values are currently defined in `src/main/resources/application.properties`.
+
+---
+
+## Project structure
 
 ```text
-input/
-  2024-08/
-    nomenclature.csv
-    non_renouveles.csv
-    retraits.csv
-  2024-12/
-    nomenclature.csv
-    non_renouveles.csv
-    retraits.csv
-src/
-  main/
-    java/dz/anisbouhadida/medzloader/
-      batch/
-      config/
-      domain/
-      infrastructure/
-    resources/
-      application.properties
-      sql/
-        ddl.sql
-        nuke-reset.sql
+src/main/java/dz/anisbouhadida/medzloader/
+├── MedzLoaderApplication.java
+├── batch/
+│   ├── config/      # job, step, reader, processor, writer wiring
+│   ├── dto/         # CSV line records and column definitions
+│   ├── reader/      # resource-aware file reader
+│   └── support/     # classifiers, mappers, properties, SQL helpers
+├── domain/
+│   ├── api/         # use-case boundary
+│   ├── model/       # immutable records and sealed events
+│   ├── service/     # domain services
+│   └── spi/         # persistence ports
+└── infrastructure/
+    └── jdbc/        # JDBC adapters and repository implementations
+
+src/main/resources/
+├── application.properties
+└── sql/
+    ├── ddl.sql
+    └── write/
+
+src/test/
+├── java/            # unit and JDBC-backed tests
+└── resources/
+    └── application-test.properties
 ```
+
+---
+
+## Quality and CI
+
+Preferred verification command:
+
+```bash
+./mvnw clean verify
+```
+
+The Maven build currently includes:
+
+- unit and integration-style tests,
+- Spotless formatting checks,
+- JaCoCo coverage verification,
+- Maven Enforcer rules for Java and Maven versions,
+- source and Javadoc artifact generation.
+
+GitHub Actions CI:
+
+- runs on pushes and pull requests,
+- starts a PostgreSQL 17 service,
+- activates the `test` profile,
+- executes `./mvnw --batch-mode verify`.
+
+There is also a release workflow that builds and publishes versioned JARs from `release/*` branches.
+
+---
+
+## Contributing
+
+Contributions are welcome, especially from developers who care about open Algerian data, public-interest tooling, and reproducible backend systems.
+
+Good contributions include:
+
+- improving ingestion robustness,
+- tightening tests around CSV or SQL contracts,
+- improving documentation,
+- clarifying release-cycle assumptions,
+- preparing this loader for future Medz services.
+
+Before opening a pull request:
+
+1. Keep the CSV filename contract intact unless you also update the classifier and tests.
+2. Preserve the composite-key and versioning behavior unless the change is intentional and documented.
+3. Add or update tests alongside behavior changes.
+4. Run:
+
+```bash
+./mvnw clean verify
+```
+
+Focused pull requests are especially appreciated.
+
+---
+
+## Community note
+
+This repository is open source, but more importantly it is meant to be **useful**.
+
+The goal is to help the Algerian developer community build better tools on top of medicine data with less duplicated effort and more shared infrastructure.
+
+If you are building something around the Medz ecosystem, feel free to open an issue, propose an improvement, or contribute documentation that helps the next developer move faster.
+
+Related Medz repositories:
+
+- [`medz-extractor`](https://github.com/anisbouhadida/medz-extractor) — Excel to CSV extraction
+- [`medz-loader`](https://github.com/anisbouhadida/medz-loader) — CSV to PostgreSQL loading
+- [`medz-gql-api`](https://github.com/anisbouhadida/medz-gql-api) — GraphQL access layer
+- [`medz-explorer`](https://github.com/anisbouhadida/medz-explorer) — Angular exploration UI
+
+---
 
 ## License
 
-This project is open source and available under the Apache License 2.0.
+This project is distributed under the Apache License 2.0.
