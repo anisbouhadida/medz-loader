@@ -1,16 +1,10 @@
-package dz.anisbouhadida.medzloader.batch.config;
+package dz.anisbouhadida.medzloader.batch.config.item.writer;
 
-import static dz.anisbouhadida.medzloader.batch.support.utils.MedicineSqlUtils.compositeKeyParams;
-import static dz.anisbouhadida.medzloader.batch.support.utils.MedicineSqlUtils.loadSql;
-
-import dz.anisbouhadida.medzloader.config.MedzLoaderProperties;
+import dz.anisbouhadida.medzloader.batch.support.properties.MedzLoaderProperties;
 import dz.anisbouhadida.medzloader.domain.model.MedicineEvent;
 import dz.anisbouhadida.medzloader.domain.model.NomenclatureEvent;
 import dz.anisbouhadida.medzloader.domain.model.NonRenewalEvent;
 import dz.anisbouhadida.medzloader.domain.model.WithdrawalEvent;
-import java.sql.Timestamp;
-import java.util.List;
-import javax.sql.DataSource;
 import lombok.RequiredArgsConstructor;
 import org.springframework.batch.infrastructure.item.ItemWriter;
 import org.springframework.batch.infrastructure.item.database.JdbcBatchItemWriter;
@@ -20,6 +14,12 @@ import org.springframework.batch.infrastructure.item.support.CompositeItemWriter
 import org.springframework.beans.factory.annotation.Qualifier;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
+
+import javax.sql.DataSource;
+import java.util.List;
+
+import static dz.anisbouhadida.medzloader.batch.support.utils.MedicineSqlUtils.compositeKeyParams;
+import static dz.anisbouhadida.medzloader.batch.support.utils.MedicineSqlUtils.loadSql;
 
 /// Spring Batch writer configuration for [MedicineEvent] items.
 ///
@@ -34,7 +34,7 @@ import org.springframework.context.annotation.Configuration;
 ///
 /// @author Anis Bouhadida
 /// @since 0.0.1
-/// @version 0.2.0
+/// @version 0.2.1
 @Configuration
 @RequiredArgsConstructor
 public class MedicineItemWriterConfiguration {
@@ -83,40 +83,25 @@ public class MedicineItemWriterConfiguration {
   protected JdbcBatchItemWriter<MedicineEvent> medicineItemWriter(DataSource dataSource) {
 
     return new JdbcBatchItemWriterBuilder<MedicineEvent>()
-        .dataSource(dataSource)
-        .sql(loadSql("sql/write/medicine-upsert.sql"))
-        .itemSqlParameterSourceProvider(
-            event ->
-                compositeKeyParams(event)
-                    .addValue(
-                        "internationalCommonDenomination",
-                        event.medicine().internationalCommonDenomination())
-                    .addValue("form", event.medicine().form())
-                    .addValue("dosage", event.medicine().dosage())
-                    .addValue("packaging", event.medicine().packaging())
-                    .addValue("list", event.medicine().list())
-                    .addValue("p1", event.medicine().p1())
-                    .addValue("p2", event.medicine().p2())
-                    .addValue("laboratoryCountry", event.medicine().laboratoryCountry())
-                    .addValue(
-                        "initialRegistrationDate",
-                        event.medicine().initialRegistrationDate() == null
-                            ? null
-                            : Timestamp.from(
-                                event
-                                    .medicine()
-                                    .initialRegistrationDate()
-                                    .atZone(properties.registrationZoneId())
-                                    .toInstant()))
-                    .addValue(
-                        "type",
-                        event.medicine().type() == null ? null : event.medicine().type().name())
-                    .addValue(
-                        "origin",
-                        event.medicine().origin() == null ? null : event.medicine().origin().name())
-                    .addValue("version", event.medicine().version()))
-        .assertUpdates(false)
-        .build();
+            .dataSource(dataSource)
+            .sql(loadSql("sql/write/medicine-upsert.sql"))
+            .itemSqlParameterSourceProvider(
+                    event ->
+                            compositeKeyParams(event)
+                                    .addValue("internationalCommonDenomination",event.medicine().internationalCommonDenomination())
+                                    .addValue("form", event.medicine().form())
+                                    .addValue("dosage", event.medicine().dosage())
+                                    .addValue("packaging", event.medicine().packaging())
+                                    .addValue("list", event.medicine().list())
+                                    .addValue("p1", event.medicine().p1())
+                                    .addValue("p2", event.medicine().p2())
+                                    .addValue("laboratoryCountry", event.medicine().laboratoryCountry())
+                                    .addValue("initialRegistrationDate",event.medicine().initialRegistrationDate(properties.registrationZoneId()))
+                                    .addValue("type",event.medicine().typeToString())
+                                    .addValue("origin",event.medicine().originToString())
+                                    .addValue("version", event.medicine().version()))
+            .assertUpdates(false)
+            .build();
   }
 
   /// Creates a [JdbcBatchItemWriter] that records the current medicine status
