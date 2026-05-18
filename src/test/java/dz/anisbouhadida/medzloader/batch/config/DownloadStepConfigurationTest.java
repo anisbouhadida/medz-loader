@@ -2,7 +2,8 @@ package dz.anisbouhadida.medzloader.batch.config;
 
 import static org.assertj.core.api.Assertions.assertThat;
 
-import dz.anisbouhadida.medzloader.config.MedzLoaderProperties;
+import dz.anisbouhadida.medzloader.batch.config.step.DownloadStepConfiguration;
+import dz.anisbouhadida.medzloader.batch.support.properties.MedzLoaderProperties;
 import java.io.IOException;
 import java.time.ZoneId;
 import org.junit.jupiter.api.DisplayName;

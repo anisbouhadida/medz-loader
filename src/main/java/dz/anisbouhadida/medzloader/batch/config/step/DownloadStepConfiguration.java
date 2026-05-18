@@ -1,6 +1,6 @@
-package dz.anisbouhadida.medzloader.batch.config;
+package dz.anisbouhadida.medzloader.batch.config.step;
 
-import dz.anisbouhadida.medzloader.config.MedzLoaderProperties;
+import dz.anisbouhadida.medzloader.batch.support.properties.MedzLoaderProperties;
 import java.io.IOException;
 import java.nio.file.Path;
 import lombok.RequiredArgsConstructor;
