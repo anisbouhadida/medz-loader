@@ -1,6 +1,6 @@
-package dz.anisbouhadida.medzloader.batch.support.constant;
+package dz.anisbouhadida.medzloader.batch.dto.constant;
 
-import dz.anisbouhadida.medzloader.batch.reader.MedicineItemReaderFactory;
+import dz.anisbouhadida.medzloader.batch.support.factory.MedicineItemReaderFactory;
 import lombok.AccessLevel;
 import lombok.NoArgsConstructor;
 
@@ -15,7 +15,7 @@ import lombok.NoArgsConstructor;
 ///
 /// @author Anis Bouhadida
 /// @since 0.1.0
-/// @version 0.1.0
+/// @version 0.2.0
 @NoArgsConstructor(access = AccessLevel.PRIVATE)
 public final class MedicineCsvColumns {
 
@@ -70,6 +70,19 @@ public final class MedicineCsvColumns {
   /// Column name for the medicine status/origin.
   public static final String STATUS = "status";
 
+  /// Column name for the observations field.
+  public static final String OBS = "obs";
+
+  /// Column name for the stability duration field.
+  public static final String STABILITY_DURATION = "stabilityDuration";
+
+  /// Column name for the withdrawal date field.
+  public static final String WITHDRAWAL_DATE = "withdrawalDate";
+
+  /// Column name for the withdrawal reason field.
+  public static final String WITHDRAWAL_REASON = "withdrawalReason";
+
+  /// Ordered field names for the nomenclature CSV format.
   private static final String[] NOMENCLATURE_FIELDS = {
     ID,
     REGISTRATION_NUMBER,
@@ -82,16 +95,17 @@ public final class MedicineCsvColumns {
     LIST,
     P1,
     P2,
-    "obs",
+    OBS,
     LAB,
     LAB_COUNTRY,
     INITIAL_REG_DATE,
     FINAL_REG_DATE,
     TYPE,
     STATUS,
-    "stabilityDuration"
+    STABILITY_DURATION
   };
 
+  /// Ordered field names for the withdrawal CSV format.
   private static final String[] WITHDRAWAL_FIELDS = {
     ID,
     REGISTRATION_NUMBER,
@@ -109,10 +123,11 @@ public final class MedicineCsvColumns {
     INITIAL_REG_DATE,
     TYPE,
     STATUS,
-    "withdrawalDate",
-    "withdrawalReason"
+    WITHDRAWAL_DATE,
+    WITHDRAWAL_REASON
   };
 
+  /// Ordered field names for the non-renewal CSV format.
   private static final String[] NON_RENEWAL_FIELDS = {
     ID,
     REGISTRATION_NUMBER,
@@ -125,7 +140,7 @@ public final class MedicineCsvColumns {
     LIST,
     P1,
     P2,
-    "obs",
+    OBS,
     LAB,
     LAB_COUNTRY,
     INITIAL_REG_DATE,
@@ -137,6 +152,8 @@ public final class MedicineCsvColumns {
   /// Returns a copy of the ordered field names for the **nomenclature** CSV format.
   ///
   /// Includes all common fields plus `obs` (observations) and `stabilityDuration`.
+  ///
+  /// @return a defensive copy of the nomenclature field order
   public static String[] nomenclatureFields() {
     return NOMENCLATURE_FIELDS.clone();
   }
@@ -144,6 +161,8 @@ public final class MedicineCsvColumns {
   /// Returns a copy of the ordered field names for the **withdrawal** CSV format.
   ///
   /// Includes all common fields plus `withdrawalDate` and `withdrawalReason`.
+  ///
+  /// @return a defensive copy of the withdrawal field order
   public static String[] withdrawalFields() {
     return WITHDRAWAL_FIELDS.clone();
   }
@@ -151,6 +170,8 @@ public final class MedicineCsvColumns {
   /// Returns a copy of the ordered field names for the **non-renewal** CSV format.
   ///
   /// Includes all common fields plus `obs` (observations).
+  ///
+  /// @return a defensive copy of the non-renewal field order
   public static String[] nonRenewalFields() {
     return NON_RENEWAL_FIELDS.clone();
   }

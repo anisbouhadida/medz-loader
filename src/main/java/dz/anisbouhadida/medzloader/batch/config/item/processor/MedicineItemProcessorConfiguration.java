@@ -1,4 +1,4 @@
-package dz.anisbouhadida.medzloader.batch.config;
+package dz.anisbouhadida.medzloader.batch.config.item.processor;
 
 import dz.anisbouhadida.medzloader.batch.dto.MedicineLine;
 import dz.anisbouhadida.medzloader.batch.dto.NomenclatureLine;
