@@ -8,7 +8,9 @@ GitHub Actions already uses `postgres:17-alpine` for verification. Local develop
 
 ## Goal
 
-Add Docker Compose support for PostgreSQL only. Developers should be able to start the database with one command, run `medz-loader` from Maven, run tests against the same local PostgreSQL service, and let API applications read from the same shared `medz` database during development.
+Add Docker Compose support for PostgreSQL only. Developers should be able to start the development database with one command, run `medz-loader` from Maven, and let API applications read from the same shared `medz` database during development.
+
+Automated tests should not depend on the persistent Compose database. They should use isolated PostgreSQL containers through Testcontainers so test data is disposable, repeatable, and independent from a developer's local `medz` database.
 
 ## Non-Goals
 
@@ -16,6 +18,7 @@ Add Docker Compose support for PostgreSQL only. Developers should be able to sta
 - Do not move application configuration away from the existing Spring properties.
 - Do not add Flyway or Liquibase as part of this Compose change.
 - Do not make this repository own the lifecycle of downstream API applications.
+- Do not use Docker Compose as the long-term test database fixture.
 
 ## Proposed Compose Shape
 
@@ -35,9 +38,7 @@ Add initialization SQL under `docker/postgres/init/`.
 
 The init flow must:
 
-- Create the `medz_test` database if it does not exist.
 - Create the `medz` application database through the official Postgres image defaults.
-- Create the `medz` test user with password `medz`, matching `src/test/resources/application-test.properties`.
 - Create a read-only API user for local API development, for example `medz_reader/medz_reader`.
 - Apply the existing medicine schema from `src/main/resources/sql/ddl.sql` to the `medz` database.
 - Grant read access on public tables and sequences in `medz` to the API reader user.
@@ -58,11 +59,13 @@ Run the loader from the host:
 ./mvnw spring-boot:run
 ```
 
-Run verification against the Compose database:
+Run verification with isolated test PostgreSQL containers:
 
 ```shell
 SPRING_PROFILES_ACTIVE=test ./mvnw verify
 ```
+
+The test suite should start its own PostgreSQL container through Testcontainers instead of reusing the persistent Compose database.
 
 Reset local database state:
 
@@ -101,7 +104,7 @@ Update `README.md` to include:
 - Docker Compose as the recommended local PostgreSQL setup.
 - How to start and reset the database.
 - How to run the loader after Compose is started.
-- How to run tests against the Compose PostgreSQL service.
+- How tests run against Testcontainers-managed PostgreSQL instead of the Compose database.
 - Connection strings for downstream API applications.
 - A note that `src/main/resources/sql/ddl.sql` initializes the medicine business schema, while Spring initializes Spring Batch metadata tables at runtime.
 
@@ -111,5 +114,20 @@ Verification must include:
 
 - `docker compose config` to validate Compose syntax.
 - Starting PostgreSQL with `docker compose up -d`.
-- Confirming the `medz` and `medz_test` databases exist.
+- Confirming the `medz` database exists and the API reader user can connect with read-only privileges.
 - Running `SPRING_PROFILES_ACTIVE=test ./mvnw verify` when Java 25 and Docker are available.
+
+## Testcontainers Direction
+
+Move test database setup away from `src/test/resources/application-test.properties` hardcoded `localhost:5432` assumptions and into Testcontainers-backed Spring test configuration.
+
+The test setup should:
+
+- Start `postgres:17-alpine`, matching CI and local Compose.
+- Create an isolated database per test JVM run.
+- Let Spring consume the dynamically allocated JDBC URL, username, and password.
+- Keep `spring.batch.job.enabled=false` for tests.
+- Keep `spring.batch.jdbc.initialize-schema=always` so Spring Batch metadata tables are initialized by Spring.
+- Apply `src/main/resources/sql/ddl.sql` before JDBC-backed repository tests that need the medicine business schema.
+
+After this migration, GitHub Actions no longer needs a PostgreSQL service container for Maven verification because tests provision their own database.
