@@ -1,6 +1,5 @@
 package dz.anisbouhadida.medzloader.batch.dto.constant;
 
-import dz.anisbouhadida.medzloader.batch.support.factory.MedicineItemReaderFactory;
 import lombok.AccessLevel;
 import lombok.NoArgsConstructor;
 

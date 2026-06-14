@@ -149,7 +149,7 @@ If a CSV file does not match one of those filename patterns, the loader cannot c
 
 - Java 25
 - Maven 3.9+
-- PostgreSQL
+- Docker or a compatible container runtime
 
 ### 2) Clone and build
 
@@ -161,19 +161,59 @@ cd medz-loader
 
 ### 3) Prepare PostgreSQL
 
-Create a database, for example `medz`, then apply the application schema from `src/main/resources/sql/ddl.sql`.
-
-Example:
+The recommended local setup uses Docker Compose to start PostgreSQL 17 with the
+medicine schema and development roles already initialized:
 
 ```bash
-createdb medz
-psql -d medz -f src/main/resources/sql/ddl.sql
+docker compose up -d
+```
+
+Compose creates the durable development database:
+
+```text
+database: medz
+host: localhost
+port: 5432
+```
+
+Development roles follow the `medz_<app_or_scope>_<access_level>` naming
+standard:
+
+```text
+medz_loader_writer / medz_loader_writer
+medz_api_reader    / medz_api_reader
+```
+
+Use `medz_loader_writer` to run `medz-loader`. Use `medz_api_reader` for
+local API applications that only need to read the loaded dataset.
+
+An API running on the host can connect with:
+
+```text
+jdbc:postgresql://localhost:5432/medz
+```
+
+An API running in another Compose project can connect with:
+
+```text
+jdbc:postgresql://postgres:5432/medz
+```
+
+The second form requires the API service to join the `medz-network` Docker
+network created by this Compose file.
+
+To reset local database state:
+
+```bash
+docker compose down -v
+docker compose up -d
 ```
 
 Notes:
 
 - `spring.batch.jdbc.initialize-schema=always` initializes the **Spring Batch metadata tables**.
-- The medicine business schema is defined in `src/main/resources/sql/ddl.sql` and should be applied explicitly.
+- The medicine business schema is defined in `src/main/resources/sql/ddl.sql` and is applied by the Compose initialization scripts.
+- Automated tests use Testcontainers-managed PostgreSQL instances instead of the persistent Compose database.
 
 ### 4) Configure the loader
 
@@ -181,8 +221,8 @@ Default runtime properties live in `src/main/resources/application.properties`:
 
 ```properties
 spring.datasource.url=jdbc:postgresql://localhost:5432/medz
-spring.datasource.username=postgres
-spring.datasource.password=password
+spring.datasource.username=medz_loader_writer
+spring.datasource.password=medz_loader_writer
 spring.batch.jdbc.initialize-schema=always
 
 medz.loader.input-dir=./input
@@ -323,6 +363,7 @@ Preferred verification command:
 The Maven build currently includes:
 
 - unit and integration-style tests,
+- Testcontainers-managed PostgreSQL for Spring context and JDBC-backed tests,
 - Spotless formatting checks,
 - JaCoCo coverage verification,
 - Maven Enforcer rules for Java and Maven versions,
@@ -331,8 +372,8 @@ The Maven build currently includes:
 GitHub Actions CI:
 
 - runs on pushes and pull requests,
-- starts a PostgreSQL 17 service,
 - activates the `test` profile,
+- lets Testcontainers provision PostgreSQL 17 during the Maven test run,
 - executes `./mvnw --batch-mode verify`.
 
 There is also a release workflow that builds and publishes versioned JARs from `release/*` branches.
