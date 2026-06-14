@@ -27,10 +27,41 @@ Add a root-level `compose.yaml` containing one `postgres` service:
 - Image: `postgres:17-alpine`, matching CI.
 - Host port: `5432:5432`, matching current application and test properties.
 - Default database: `medz`.
-- Default writer/admin credentials: `postgres/password`, matching `src/main/resources/application.properties`.
+- Default runtime credentials should use the Medz role naming standard described below.
 - Persistent named volume for PostgreSQL data.
 - Named network, for example `medz-network`, so other local Compose projects can join the same database network.
 - Healthcheck using `pg_isready`.
+
+## Database Role Naming Standard
+
+Development database roles must use this naming pattern:
+
+```text
+medz_<app_or_scope>_<access_level>
+```
+
+Use short, explicit access levels:
+
+- `owner`: owns the database and schema objects.
+- `writer`: can read and write application data, but should not be used by read-only services.
+- `reader`: can only read application data.
+
+For this Compose setup:
+
+| Role | Login | Purpose |
+| --- | --- | --- |
+| `medz_loader_owner` | No | Owns the `medz` database and initialized schema objects. |
+| `medz_loader_writer` | Yes | Runtime writer role for `medz-loader`. |
+| `medz_api_reader` | Yes | Read-only role for API applications that query the loaded dataset. |
+
+The official Postgres image still needs a bootstrap superuser through `POSTGRES_USER`, but application documentation should point developers to the Medz-specific roles instead of generic `postgres` credentials.
+
+For local development only, login role passwords may match the role name to keep setup predictable:
+
+```text
+medz_loader_writer / medz_loader_writer
+medz_api_reader / medz_api_reader
+```
 
 ## Database Initialization
 
@@ -39,9 +70,11 @@ Add initialization SQL under `docker/postgres/init/`.
 The init flow must:
 
 - Create the `medz` application database through the official Postgres image defaults.
-- Create a read-only API user for local API development, for example `medz_reader/medz_reader`.
+- Create `medz_loader_owner`, `medz_loader_writer`, and `medz_api_reader` roles.
+- Make `medz_loader_owner` a non-login ownership role.
 - Apply the existing medicine schema from `src/main/resources/sql/ddl.sql` to the `medz` database.
-- Grant read access on public tables and sequences in `medz` to the API reader user.
+- Grant read/write privileges on application tables and sequences to `medz_loader_writer`.
+- Grant read-only privileges on application tables and sequences to `medz_api_reader`.
 
 The Spring Batch metadata schema remains managed by Spring through `spring.batch.jdbc.initialize-schema=always`.
 
@@ -93,8 +126,8 @@ The second form requires that the API Compose service joins the same external `m
 The recommended local API credentials are the read-only user:
 
 ```text
-username: medz_reader
-password: medz_reader
+username: medz_api_reader
+password: medz_api_reader
 ```
 
 ## Documentation Updates
