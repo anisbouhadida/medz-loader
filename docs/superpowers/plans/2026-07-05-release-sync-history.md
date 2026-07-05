@@ -2,9 +2,9 @@
 
 > **For agentic workers:** REQUIRED SUB-SKILL: Use superpowers:subagent-driven-development (recommended) or superpowers:executing-plans to implement this plan task-by-task. Steps use checkbox (`- [ ]`) syntax for tracking.
 
-**Goal:** Load strict `YYYY-MM` release directories sequentially and append one database history row after each complete, successful three-file release.
+**Goal:** Replace dynamic release-specific steps with one fixed Spring Batch job that loads all validated releases and appends history in a fixed follow-up tasklet step.
 
-**Architecture:** A discovery component validates and sorts immutable release descriptors. Job configuration generates a load step and a transactional metadata step for each release, reusing the existing chunk pipeline and recording counts from the completed load `StepExecution`; a unique load-step ID makes metadata restart-safe.
+**Architecture:** A singleton immutable release catalog supplies one standard `MultiResourceItemReader` and one step-scoped metadata tasklet. Spring configuration declares fixed `medzLoaderStep`, `recordSyncHistoryStep`, and `medzLoaderJob` beans composed with `.start(...).next(...)`; custom code is limited to Medz directory validation and JDBC history persistence.
 
 **Tech Stack:** Java 25, Spring Boot 4.0.6, Spring Batch 6, Spring JDBC, PostgreSQL, JUnit 5, Mockito, AssertJ, Maven.
 
@@ -12,904 +12,472 @@
 
 ## File Map
 
-- Create `src/main/java/dz/anisbouhadida/medzloader/batch/model/MedicineRelease.java`: immutable release month, relative directory, and ordered resources.
-- Create `src/main/java/dz/anisbouhadida/medzloader/batch/support/classifier/MedicineCsvFileType.java`: one authoritative filename-to-type classification rule.
-- Create `src/main/java/dz/anisbouhadida/medzloader/batch/support/discovery/MedicineReleaseDiscovery.java`: validate direct release directories and return chronological descriptors.
-- Modify `src/main/java/dz/anisbouhadida/medzloader/batch/support/classifier/MedicineItemReaderClassifier.java`: delegate filename recognition to `MedicineCsvFileType`.
-- Modify `src/main/java/dz/anisbouhadida/medzloader/batch/config/reader/MedicineItemReaderConfiguration.java`: build a fresh reader for one release rather than one global recursive reader bean.
-- Modify `src/main/java/dz/anisbouhadida/medzloader/batch/config/step/MedzLoaderStepConfiguration.java`: expose load-step creation for a supplied release.
-- Create `src/main/java/dz/anisbouhadida/medzloader/domain/model/DataSyncHistory.java`: immutable successful-sync data.
-- Create `src/main/java/dz/anisbouhadida/medzloader/infrastructure/jdbc/repository/DataSyncHistoryRepository.java`: append sync history using named JDBC parameters.
-- Create `src/main/java/dz/anisbouhadida/medzloader/batch/tasklet/RecordReleaseSyncTasklet.java`: locate the completed load execution and record its statistics.
-- Modify `src/main/java/dz/anisbouhadida/medzloader/batch/config/job/MedzLoaderJobConfiguration.java`: generate chronological load/metadata pairs and an empty-input no-op flow.
-- Create `src/main/resources/sql/write/insert-data-sync-history.sql`: idempotent insert keyed by load step execution.
-- Modify `src/main/resources/sql/ddl.sql`: add `data_sync_history` and its latest-release index.
-- Modify `src/main/resources/sql/nuke-reset.sql`: reset the new business table with the existing schema reset.
-- Modify `README.md`: document strict release directories and the history table/query.
-- Add focused tests beside each production component, plus a Spring Batch flow integration test.
+- Create `src/main/java/dz/anisbouhadida/medzloader/batch/model/MedicineReleaseCatalog.java`: immutable releases and flattened ordered resources.
+- Modify `src/main/java/dz/anisbouhadida/medzloader/batch/support/discovery/MedicineReleaseDiscovery.java`: return the immutable catalog after strict validation.
+- Modify `src/main/java/dz/anisbouhadida/medzloader/batch/config/reader/MedicineItemReaderConfiguration.java`: restore fixed Spring beans for the catalog and global reader.
+- Modify `src/main/java/dz/anisbouhadida/medzloader/batch/config/step/MedzLoaderStepConfiguration.java`: declare fixed load, step-scoped tasklet, and history-step beans.
+- Modify `src/main/java/dz/anisbouhadida/medzloader/batch/config/job/MedzLoaderJobConfiguration.java`: declare one fixed two-step job.
+- Delete `src/main/java/dz/anisbouhadida/medzloader/batch/tasklet/RecordReleaseSyncTasklet.java`: replace custom orchestration with a standard step-scoped `Tasklet` bean.
+- Modify `src/main/java/dz/anisbouhadida/medzloader/domain/model/DataSyncHistory.java`: retain only release, directory, and job execution identity.
+- Modify `src/main/java/dz/anisbouhadida/medzloader/infrastructure/jdbc/repository/DataSyncHistoryRepository.java`: batch-insert every catalog release.
+- Modify `src/main/resources/sql/ddl.sql`, `src/main/resources/sql/write/insert-data-sync-history.sql`, and `src/main/resources/sql/nuke-reset.sql`: align schema and idempotency with job/release identity.
+- Replace obsolete dynamic-step tests with fixed-bean, tasklet, persistence, and PostgreSQL lifecycle tests.
+- Modify `README.md`: document the fixed two-step flow and history query.
 
-Keep all existing user-authored worktree changes. Every commit command below uses explicit paths; do not stage the entire worktree.
+The worktree already contains unrelated user changes. Use explicit file paths for every edit and commit; do not reset, restore, or stage the whole tree.
 
-### Task 1: Centralize CSV Type Classification
+### Task 1: Build One Immutable Release Catalog
 
 **Files:**
-- Create: `src/main/java/dz/anisbouhadida/medzloader/batch/support/classifier/MedicineCsvFileType.java`
-- Modify: `src/main/java/dz/anisbouhadida/medzloader/batch/support/classifier/MedicineItemReaderClassifier.java`
-- Create: `src/test/java/dz/anisbouhadida/medzloader/batch/support/classifier/MedicineCsvFileTypeTest.java`
-- Modify: `src/test/java/dz/anisbouhadida/medzloader/batch/reader/MedicineItemReaderClassifierTest.java`
+- Create: `src/main/java/dz/anisbouhadida/medzloader/batch/model/MedicineReleaseCatalog.java`
+- Modify: `src/main/java/dz/anisbouhadida/medzloader/batch/support/discovery/MedicineReleaseDiscovery.java`
+- Modify: `src/test/java/dz/anisbouhadida/medzloader/batch/support/discovery/MedicineReleaseDiscoveryTest.java`
 
-- [ ] **Step 1: Write the failing filename classification tests**
+- [ ] **Step 1: Write the failing catalog test**
 
 ```java
-@DisplayName("MedicineCsvFileType")
-class MedicineCsvFileTypeTest {
+@Test
+void discoverCatalog_shouldExposeChronologicalReleasesAndResources() throws IOException {
+  createRelease("2026-04");
+  createRelease("2026-02");
 
-  @ParameterizedTest
-  @CsvSource({
-    "nomenclature.csv, NOMENCLATURE",
-    "retraits_2026.csv, WITHDRAWAL",
-    "non_renouveles.csv, NON_RENEWAL"
-  })
-  void fromFilename_shouldClassifyRecognizedFiles(String filename, MedicineCsvFileType expected) {
-    assertThat(MedicineCsvFileType.fromFilename(filename)).isEqualTo(expected);
-  }
+  var catalog = new MedicineReleaseDiscovery(inputDirectory).discoverCatalog();
 
-  @Test
-  void fromFilename_shouldRejectUnknownFiles() {
-    assertThatThrownBy(() -> MedicineCsvFileType.fromFilename("other.csv"))
-        .isInstanceOf(IllegalArgumentException.class)
-        .hasMessage("Unknown medicine CSV file type: other.csv");
-  }
+  assertThat(catalog.releases())
+      .extracting(MedicineRelease::version)
+      .containsExactly("2026-02", "2026-04");
+  assertThat(catalog.resources())
+      .extracting(Resource::getFilename)
+      .containsExactly(
+          "nomenclature.csv", "non_renouveles.csv", "retraits.csv",
+          "nomenclature.csv", "non_renouveles.csv", "retraits.csv");
 }
 ```
 
-Update `MedicineItemReaderClassifierTest` expected unknown-file text to the same message.
+- [ ] **Step 2: Verify RED**
 
-- [ ] **Step 2: Run the tests and verify the new type is missing**
+Run: `JAVA_HOME=/Library/Java/JavaVirtualMachines/temurin-25.jdk/Contents/Home ./mvnw -Dtest=MedicineReleaseDiscoveryTest test`
 
-Run: `./mvnw -Dtest=MedicineCsvFileTypeTest,MedicineItemReaderClassifierTest test`
+Expected: compilation fails because `discoverCatalog()` and `MedicineReleaseCatalog` do not exist.
 
-Expected: compilation fails because `MedicineCsvFileType` does not exist.
-
-- [ ] **Step 3: Add the enum and route the reader classifier through it**
+- [ ] **Step 3: Add the immutable catalog and discovery method**
 
 ```java
-/// Supported medicine CSV file types and their filename contract.
-public enum MedicineCsvFileType {
-  NOMENCLATURE("nomenclature"),
-  WITHDRAWAL("retraits"),
-  NON_RENEWAL("non_renouveles");
+/// Immutable input snapshot shared by the fixed load and metadata steps.
+public record MedicineReleaseCatalog(
+    List<MedicineRelease> releases, List<Resource> resources) {
 
-  private final String filenameToken;
-
-  MedicineCsvFileType(String filenameToken) {
-    this.filenameToken = filenameToken;
-  }
-
-  public static MedicineCsvFileType fromFilename(String filename) {
-    return Arrays.stream(values())
-        .filter(type -> filename.contains(type.filenameToken))
-        .findFirst()
-        .orElseThrow(
-            () -> new IllegalArgumentException("Unknown medicine CSV file type: " + filename));
-  }
-}
-```
-
-Replace the classifier conditional with an exhaustive switch:
-
-```java
-return switch (MedicineCsvFileType.fromFilename(currentResource)) {
-  case NOMENCLATURE -> readerFactory.createNomenclatureReader();
-  case WITHDRAWAL -> readerFactory.createWithdrawalReader();
-  case NON_RENEWAL -> readerFactory.createNonRenewalReader();
-};
-```
-
-- [ ] **Step 4: Run classification tests**
-
-Run: `./mvnw -Dtest=MedicineCsvFileTypeTest,MedicineItemReaderClassifierTest test`
-
-Expected: all tests pass.
-
-- [ ] **Step 5: Commit only classifier work**
-
-```bash
-git add src/main/java/dz/anisbouhadida/medzloader/batch/support/classifier/MedicineCsvFileType.java src/main/java/dz/anisbouhadida/medzloader/batch/support/classifier/MedicineItemReaderClassifier.java src/test/java/dz/anisbouhadida/medzloader/batch/support/classifier/MedicineCsvFileTypeTest.java src/test/java/dz/anisbouhadida/medzloader/batch/reader/MedicineItemReaderClassifierTest.java
-git commit -m "refactor: centralize medicine CSV classification"
-```
-
-### Task 2: Discover and Validate Release Directories
-
-**Files:**
-- Create: `src/main/java/dz/anisbouhadida/medzloader/batch/model/MedicineRelease.java`
-- Create: `src/main/java/dz/anisbouhadida/medzloader/batch/support/discovery/MedicineReleaseDiscovery.java`
-- Create: `src/test/java/dz/anisbouhadida/medzloader/batch/support/discovery/MedicineReleaseDiscoveryTest.java`
-
-- [ ] **Step 1: Write failing discovery tests using `@TempDir`**
-
-```java
-@DisplayName("MedicineReleaseDiscovery")
-class MedicineReleaseDiscoveryTest {
-
-  @TempDir Path inputDirectory;
-
-  @Test
-  void discover_shouldReturnReleasesInChronologicalOrder() throws IOException {
-    createRelease("2026-04");
-    createRelease("2026-02");
-
-    var discovery = new MedicineReleaseDiscovery(inputDirectory);
-
-    assertThat(discovery.discover())
-        .extracting(MedicineRelease::version)
-        .containsExactly("2026-02", "2026-04");
-  }
-
-  @ParameterizedTest
-  @ValueSource(strings = {"2026-4", "April-2026", "2026-13"})
-  void discover_shouldRejectInvalidReleaseDirectoryNames(String directory) throws IOException {
-    Files.createDirectory(inputDirectory.resolve(directory));
-
-    assertThatThrownBy(() -> new MedicineReleaseDiscovery(inputDirectory).discover())
-        .isInstanceOf(IllegalArgumentException.class)
-        .hasMessageContaining(directory);
-  }
-
-  @Test
-  void discover_shouldRejectMissingRequiredFile() throws IOException {
-    var release = Files.createDirectory(inputDirectory.resolve("2026-04"));
-    Files.createFile(release.resolve("nomenclature.csv"));
-    Files.createFile(release.resolve("retraits.csv"));
-
-    assertThatThrownBy(() -> new MedicineReleaseDiscovery(inputDirectory).discover())
-        .isInstanceOf(IllegalArgumentException.class)
-        .hasMessageContaining("2026-04")
-        .hasMessageContaining("NON_RENEWAL");
-  }
-
-  private void createRelease(String version) throws IOException {
-    var release = Files.createDirectory(inputDirectory.resolve(version));
-    Files.createFile(release.resolve("nomenclature.csv"));
-    Files.createFile(release.resolve("non_renouveles.csv"));
-    Files.createFile(release.resolve("retraits.csv"));
-  }
-}
-```
-
-Add cases for a duplicate type, unknown CSV, extra CSV, non-directory child, and empty input returning an empty list.
-
-- [ ] **Step 2: Run discovery tests and verify they fail**
-
-Run: `./mvnw -Dtest=MedicineReleaseDiscoveryTest test`
-
-Expected: compilation fails because the release types are missing.
-
-- [ ] **Step 3: Add the immutable release descriptor**
-
-```java
-/// One validated, dated medicine release and its ordered CSV resources.
-public record MedicineRelease(
-    YearMonth period, Path relativeDirectory, List<Resource> resources) {
-
-  public MedicineRelease {
+  public MedicineReleaseCatalog {
+    releases = List.copyOf(releases);
     resources = List.copyOf(resources);
   }
 
-  public String version() {
-    return period.toString();
-  }
-}
-```
-
-- [ ] **Step 4: Implement strict discovery and complete-set validation**
-
-```java
-public final class MedicineReleaseDiscovery {
-  private static final DateTimeFormatter RELEASE_FORMAT =
-      new DateTimeFormatterBuilder().appendPattern("uuuu-MM").toFormatter()
-          .withResolverStyle(ResolverStyle.STRICT);
-  private final Path inputDirectory;
-
-  public MedicineReleaseDiscovery(MedzLoaderProperties properties) {
-    this(Path.of(properties.inputDir()));
-  }
-
-  MedicineReleaseDiscovery(Path inputDirectory) {
-    this.inputDirectory = inputDirectory.toAbsolutePath().normalize();
-  }
-
-  public List<MedicineRelease> discover() throws IOException {
-    try (var children = Files.list(inputDirectory)) {
-      return children.map(this::toRelease).sorted(Comparator.comparing(MedicineRelease::period)).toList();
-    }
-  }
-
-  private MedicineRelease toRelease(Path directory) {
-    if (!Files.isDirectory(directory)) {
-      throw invalid(directory, "expected a release directory");
-    }
-    var period = parsePeriod(directory);
-    var byType = discoverCsvFiles(directory);
-    var required = EnumSet.allOf(MedicineCsvFileType.class);
-    if (!byType.keySet().equals(required)) {
-      var missing = EnumSet.copyOf(required);
-      missing.removeAll(byType.keySet());
-      throw invalid(directory, "missing required file types: " + missing);
-    }
-    var resources = Stream.of(
-            MedicineCsvFileType.NOMENCLATURE,
-            MedicineCsvFileType.NON_RENEWAL,
-            MedicineCsvFileType.WITHDRAWAL)
-        .map(byType::get)
-        .map(FileSystemResource::new)
-        .map(Resource.class::cast)
+  public static MedicineReleaseCatalog from(List<MedicineRelease> releases) {
+    var immutableReleases = List.copyOf(releases);
+    var resources = immutableReleases.stream()
+        .flatMap(release -> release.resources().stream())
         .toList();
-    return new MedicineRelease(period, inputDirectory.relativize(directory), resources);
-  }
-
-  private YearMonth parsePeriod(Path directory) {
-    try {
-      return YearMonth.parse(directory.getFileName().toString(), RELEASE_FORMAT);
-    } catch (DateTimeParseException exception) {
-      throw invalid(directory, "release directory must use YYYY-MM", exception);
-    }
-  }
-
-  private Map<MedicineCsvFileType, Path> discoverCsvFiles(Path directory) {
-    var filesByType = new EnumMap<MedicineCsvFileType, Path>(MedicineCsvFileType.class);
-    try (var children = Files.list(directory)) {
-      children.forEach(
-          path -> {
-            if (!Files.isRegularFile(path)
-                || !path.getFileName().toString().toLowerCase(Locale.ROOT).endsWith(".csv")) {
-              throw invalid(path, "release entries must be CSV files");
-            }
-            var type = MedicineCsvFileType.fromFilename(path.getFileName().toString());
-            var duplicate = filesByType.put(type, path);
-            if (duplicate != null) {
-              throw invalid(path, "duplicate " + type + " files: " + duplicate + " and " + path);
-            }
-          });
-    } catch (IOException exception) {
-      throw new UncheckedIOException("Cannot inspect release directory " + directory, exception);
-    }
-    return Map.copyOf(filesByType);
-  }
-
-  private IllegalArgumentException invalid(Path path, String reason) {
-    return new IllegalArgumentException("Invalid medicine release " + path + ": " + reason);
-  }
-
-  private IllegalArgumentException invalid(Path path, String reason, Exception cause) {
-    return new IllegalArgumentException("Invalid medicine release " + path + ": " + reason, cause);
+    return new MedicineReleaseCatalog(immutableReleases, resources);
   }
 }
 ```
 
-Import the Java time, NIO, collection, stream, Spring `Resource`, and `FileSystemResource` types referenced above. Keep `MedicineReleaseDiscovery(Path)` package-visible for `@TempDir` tests.
+Add this method while retaining `discover()` as the strict validation implementation:
 
-- [ ] **Step 5: Run discovery tests**
+```java
+public MedicineReleaseCatalog discoverCatalog() throws IOException {
+  return MedicineReleaseCatalog.from(discover());
+}
+```
 
-Run: `./mvnw -Dtest=MedicineReleaseDiscoveryTest test`
+- [ ] **Step 4: Verify GREEN**
 
-Expected: all discovery tests pass.
+Run: `JAVA_HOME=/Library/Java/JavaVirtualMachines/temurin-25.jdk/Contents/Home ./mvnw -Dtest=MedicineReleaseDiscoveryTest test`
 
-- [ ] **Step 6: Commit release discovery**
+Expected: all discovery and catalog tests pass.
+
+- [ ] **Step 5: Commit the catalog boundary**
 
 ```bash
-git add src/main/java/dz/anisbouhadida/medzloader/batch/model/MedicineRelease.java src/main/java/dz/anisbouhadida/medzloader/batch/support/discovery/MedicineReleaseDiscovery.java src/test/java/dz/anisbouhadida/medzloader/batch/support/discovery/MedicineReleaseDiscoveryTest.java
-git commit -m "feat: discover dated medicine releases"
+git add src/main/java/dz/anisbouhadida/medzloader/batch/model/MedicineReleaseCatalog.java src/main/java/dz/anisbouhadida/medzloader/batch/support/discovery/MedicineReleaseDiscovery.java src/test/java/dz/anisbouhadida/medzloader/batch/support/discovery/MedicineReleaseDiscoveryTest.java
+git commit -m "refactor: share immutable release catalog"
 ```
 
-### Task 3: Persist Append-Only Sync History
-
-**Files:**
-- Create: `src/main/java/dz/anisbouhadida/medzloader/domain/model/DataSyncHistory.java`
-- Create: `src/main/java/dz/anisbouhadida/medzloader/infrastructure/jdbc/repository/DataSyncHistoryRepository.java`
-- Create: `src/main/resources/sql/write/insert-data-sync-history.sql`
-- Modify: `src/main/resources/sql/ddl.sql`
-- Modify: `src/main/resources/sql/nuke-reset.sql`
-- Create: `src/test/java/dz/anisbouhadida/medzloader/infrastructure/jdbc/repository/DataSyncHistoryRepositoryTest.java`
-
-- [ ] **Step 1: Write the failing repository test**
-
-```java
-@ExtendWith(MockitoExtension.class)
-@DisplayName("DataSyncHistoryRepository")
-class DataSyncHistoryRepositoryTest {
-  @Mock private NamedParameterJdbcTemplate jdbcTemplate;
-
-  @Test
-  void append_shouldBindEveryHistoryField() {
-    var repository = new DataSyncHistoryRepository(jdbcTemplate);
-    var history = new DataSyncHistory("2026-04", Path.of("2026-04"), 41L, 42L, 100L, 90L, 8L, 2L);
-
-    repository.append(history);
-
-    var parameters = ArgumentCaptor.forClass(MapSqlParameterSource.class);
-    verify(jdbcTemplate).update(anyString(), parameters.capture());
-    assertThat(parameters.getValue().getValue("releaseVersion")).isEqualTo("2026-04");
-    assertThat(parameters.getValue().getValue("sourceDirectory")).isEqualTo("2026-04");
-    assertThat(parameters.getValue().getValue("jobExecutionId")).isEqualTo(41L);
-    assertThat(parameters.getValue().getValue("loadStepExecutionId")).isEqualTo(42L);
-    assertThat(parameters.getValue().getValue("readCount")).isEqualTo(100L);
-    assertThat(parameters.getValue().getValue("writeCount")).isEqualTo(90L);
-    assertThat(parameters.getValue().getValue("filterCount")).isEqualTo(8L);
-    assertThat(parameters.getValue().getValue("skipCount")).isEqualTo(2L);
-  }
-}
-```
-
-- [ ] **Step 2: Run the repository test and verify it fails**
-
-Run: `./mvnw -Dtest=DataSyncHistoryRepositoryTest test`
-
-Expected: compilation fails because the model and repository do not exist.
-
-- [ ] **Step 3: Add the history record and JDBC repository**
-
-```java
-/// Metadata for one successfully loaded release.
-public record DataSyncHistory(
-    String releaseVersion,
-    Path sourceDirectory,
-    long jobExecutionId,
-    long loadStepExecutionId,
-    long readCount,
-    long writeCount,
-    long filterCount,
-    long skipCount) {}
-```
-
-```java
-@Repository
-public class DataSyncHistoryRepository {
-  private static final String INSERT_SQL =
-      MedicineSqlUtils.loadSql("sql/write/insert-data-sync-history.sql");
-  private final NamedParameterJdbcTemplate jdbcTemplate;
-
-  public DataSyncHistoryRepository(NamedParameterJdbcTemplate jdbcTemplate) {
-    this.jdbcTemplate = jdbcTemplate;
-  }
-
-  public void append(DataSyncHistory history) {
-    var parameters = new MapSqlParameterSource()
-        .addValue("releaseVersion", history.releaseVersion())
-        .addValue("sourceDirectory", history.sourceDirectory().toString())
-        .addValue("jobExecutionId", history.jobExecutionId())
-        .addValue("loadStepExecutionId", history.loadStepExecutionId())
-        .addValue("readCount", history.readCount())
-        .addValue("writeCount", history.writeCount())
-        .addValue("filterCount", history.filterCount())
-        .addValue("skipCount", history.skipCount());
-    jdbcTemplate.update(INSERT_SQL, parameters);
-  }
-}
-```
-
-- [ ] **Step 4: Add idempotent SQL and DDL**
-
-```sql
-INSERT INTO data_sync_history (
-    release_version, source_directory, job_execution_id, load_step_execution_id,
-    read_count, write_count, filter_count, skip_count
-) VALUES (
-    :releaseVersion, :sourceDirectory, :jobExecutionId, :loadStepExecutionId,
-    :readCount, :writeCount, :filterCount, :skipCount
-)
-ON CONFLICT (load_step_execution_id) DO NOTHING;
-```
-
-Append the exact table and `(release_version DESC, loaded_at DESC)` index from the approved design to `ddl.sql`. Add `data_sync_history` before its referenced business tables in the explicit `TRUNCATE ... RESTART IDENTITY CASCADE` or drop order used by `nuke-reset.sql`.
-
-- [ ] **Step 5: Run repository and SQL-loading tests**
-
-Run: `./mvnw -Dtest=DataSyncHistoryRepositoryTest,MedicineSqlUtilsTest test`
-
-Expected: all tests pass and the SQL resource loads from the classpath.
-
-- [ ] **Step 6: Commit persistence work**
-
-```bash
-git add src/main/java/dz/anisbouhadida/medzloader/domain/model/DataSyncHistory.java src/main/java/dz/anisbouhadida/medzloader/infrastructure/jdbc/repository/DataSyncHistoryRepository.java src/main/resources/sql/write/insert-data-sync-history.sql src/main/resources/sql/ddl.sql src/main/resources/sql/nuke-reset.sql src/test/java/dz/anisbouhadida/medzloader/infrastructure/jdbc/repository/DataSyncHistoryRepositoryTest.java
-git commit -m "feat: persist release sync history"
-```
-
-### Task 4: Record Completed Load-Step Statistics
-
-**Files:**
-- Create: `src/main/java/dz/anisbouhadida/medzloader/batch/tasklet/RecordReleaseSyncTasklet.java`
-- Create: `src/test/java/dz/anisbouhadida/medzloader/batch/tasklet/RecordReleaseSyncTaskletTest.java`
-
-- [ ] **Step 1: Write failing tasklet tests**
-
-```java
-@ExtendWith(MockitoExtension.class)
-@DisplayName("RecordReleaseSyncTasklet")
-class RecordReleaseSyncTaskletTest {
-  @Mock private DataSyncHistoryRepository repository;
-  @Mock private JobExplorer jobExplorer;
-
-  @Test
-  void execute_shouldAppendCountsFromNamedCompletedLoadStep() throws Exception {
-    var jobExecution = new JobExecution(41L, null, new JobParameters());
-    var loadExecution = new StepExecution(42L, "loadRelease-2026-04", jobExecution);
-    loadExecution.setStatus(BatchStatus.COMPLETED);
-    loadExecution.setReadCount(100);
-    loadExecution.setWriteCount(90);
-    loadExecution.setFilterCount(8);
-    loadExecution.setReadSkipCount(1);
-    loadExecution.setWriteSkipCount(1);
-    jobExecution.addStepExecution(loadExecution);
-    var metadataExecution = new StepExecution("recordReleaseSync-2026-04", jobExecution);
-    var chunkContext = new ChunkContext(new StepContext(metadataExecution));
-    when(jobExplorer.getLastStepExecution(jobExecution.getJobInstance(), "loadRelease-2026-04"))
-        .thenReturn(loadExecution);
-    var tasklet = new RecordReleaseSyncTasklet(
-        "2026-04", Path.of("2026-04"), "loadRelease-2026-04", jobExplorer, repository);
-
-    var result = tasklet.execute(metadataExecution.createStepContribution(), chunkContext);
-
-    assertThat(result).isEqualTo(RepeatStatus.FINISHED);
-    verify(repository).append(new DataSyncHistory("2026-04", Path.of("2026-04"), 41L, 42L, 100L, 90L, 8L, 2L));
-  }
-}
-```
-
-Add a test asserting `IllegalStateException` when the named load step is absent or not `COMPLETED`.
-
-- [ ] **Step 2: Run tasklet tests and verify they fail**
-
-Run: `./mvnw -Dtest=RecordReleaseSyncTaskletTest test`
-
-Expected: compilation fails because the tasklet does not exist.
-
-- [ ] **Step 3: Implement the focused tasklet**
-
-```java
-public final class RecordReleaseSyncTasklet implements Tasklet {
-  private final String releaseVersion;
-  private final Path sourceDirectory;
-  private final String loadStepName;
-  private final JobExplorer jobExplorer;
-  private final DataSyncHistoryRepository repository;
-
-  @Override
-  public RepeatStatus execute(StepContribution contribution, ChunkContext chunkContext) {
-    var metadataExecution = chunkContext.getStepContext().getStepExecution();
-    var jobExecution = metadataExecution.getJobExecution();
-    var loadExecution = Optional.ofNullable(
-            jobExplorer.getLastStepExecution(jobExecution.getJobInstance(), loadStepName))
-        .filter(execution -> execution.getStatus() == BatchStatus.COMPLETED)
-        .orElseThrow(() -> new IllegalStateException("No completed load step named " + loadStepName));
-    repository.append(new DataSyncHistory(
-        releaseVersion,
-        sourceDirectory,
-        loadExecution.getJobExecutionId(),
-        loadExecution.getId(),
-        loadExecution.getReadCount(),
-        loadExecution.getWriteCount(),
-        loadExecution.getFilterCount(),
-        loadExecution.getSkipCount()));
-    return RepeatStatus.FINISHED;
-  }
-}
-```
-
-Add a constructor assigning all final fields and `///` documentation for the public type.
-
-- [ ] **Step 4: Run tasklet tests**
-
-Run: `./mvnw -Dtest=RecordReleaseSyncTaskletTest test`
-
-Expected: all tests pass.
-
-- [ ] **Step 5: Commit tasklet work**
-
-```bash
-git add src/main/java/dz/anisbouhadida/medzloader/batch/tasklet/RecordReleaseSyncTasklet.java src/test/java/dz/anisbouhadida/medzloader/batch/tasklet/RecordReleaseSyncTaskletTest.java
-git commit -m "feat: record completed release statistics"
-```
-
-### Task 5: Build Release-Scoped Readers and Steps
+### Task 2: Restore a Fixed Spring-Managed Reader and Load Step
 
 **Files:**
 - Modify: `src/main/java/dz/anisbouhadida/medzloader/batch/config/reader/MedicineItemReaderConfiguration.java`
 - Modify: `src/main/java/dz/anisbouhadida/medzloader/batch/config/step/MedzLoaderStepConfiguration.java`
-- Create: `src/test/java/dz/anisbouhadida/medzloader/batch/config/reader/MedicineItemReaderConfigurationTest.java`
-- Create: `src/test/java/dz/anisbouhadida/medzloader/batch/config/step/MedzLoaderStepConfigurationTest.java`
+- Modify: `src/test/java/dz/anisbouhadida/medzloader/batch/config/reader/MedicineItemReaderConfigurationTest.java`
+- Modify: `src/test/java/dz/anisbouhadida/medzloader/batch/config/step/MedzLoaderStepConfigurationTest.java`
 
-- [ ] **Step 1: Write failing release-reader tests**
+- [ ] **Step 1: Replace dynamic-factory expectations with failing fixed-bean tests**
 
 ```java
 @Test
-void releaseItemReader_shouldUseOnlyTheReleaseResources() {
-  var resources = List.<Resource>of(
-      new ByteArrayResource(new byte[0]) { public String getFilename() { return "nomenclature.csv"; } },
-      new ByteArrayResource(new byte[0]) { public String getFilename() { return "non_renouveles.csv"; } },
-      new ByteArrayResource(new byte[0]) { public String getFilename() { return "retraits.csv"; } });
-  var release = new MedicineRelease(YearMonth.of(2026, 4), Path.of("2026-04"), resources);
+void multiCsvItemReader_shouldUseTheCompleteCatalog() {
+  var catalog = MedicineReleaseCatalog.from(List.of(release));
 
-  var reader = configuration.releaseItemReader(release, classifier);
+  var reader = configuration.multiCsvItemReader(catalog, fileAwareReader);
 
-  assertThat(reader).isNotNull();
+  assertThat(reader.getName()).isEqualTo("multiCsvItemReader");
 }
 ```
 
-Also add a step-configuration test asserting `loadReleaseStep(release, ...)` has name `loadRelease-2026-04` and `recordReleaseSyncStep(release, ...)` has name `recordReleaseSync-2026-04`.
+```java
+@Test
+void medzLoaderStep_shouldHaveStableBeanStepName() {
+  var step = configuration.medzLoaderStep(
+      jobRepository, transactionManager, reader, processor, writer);
 
-- [ ] **Step 2: Run configuration tests and verify missing factory methods**
+  assertThat(step.getName()).isEqualTo("medzLoaderStep");
+}
+```
 
-Run: `./mvnw -Dtest=MedicineItemReaderConfigurationTest,MedzLoaderStepConfigurationTest test`
+- [ ] **Step 2: Verify RED**
 
-Expected: compilation fails because release-scoped factory methods do not exist.
+Run: `JAVA_HOME=/Library/Java/JavaVirtualMachines/temurin-25.jdk/Contents/Home ./mvnw -Dtest=MedicineItemReaderConfigurationTest,MedzLoaderStepConfigurationTest test`
 
-- [ ] **Step 3: Replace the global recursive reader bean with a release factory method**
+Expected: compilation fails because the current configuration exposes release-specific factory methods.
+
+- [ ] **Step 3: Declare the fixed catalog, delegate, and reader beans**
 
 ```java
-public MultiResourceItemReader<MedicineLine> releaseItemReader(
-    MedicineRelease release, MedicineItemReaderClassifier classifier) {
-  var delegate = new FileAwareMedicineItemReader(classifier);
+@Bean
+MedicineReleaseCatalog medicineReleaseCatalog(MedicineReleaseDiscovery discovery)
+    throws IOException {
+  return discovery.discoverCatalog();
+}
+
+@Bean
+ResourceAwareItemReaderItemStream<MedicineLine> fileAwareMedicineItemReader(
+    MedicineItemReaderClassifier classifier) {
+  return new FileAwareMedicineItemReader(classifier);
+}
+
+@Bean
+MultiResourceItemReader<MedicineLine> multiCsvItemReader(
+    MedicineReleaseCatalog catalog,
+    ResourceAwareItemReaderItemStream<MedicineLine> fileAwareMedicineItemReader) {
   return new MultiResourceItemReaderBuilder<MedicineLine>()
-      .name("releaseItemReader-" + release.version())
-      .delegate(delegate)
-      .resources(release.resources().toArray(Resource[]::new))
+      .name("multiCsvItemReader")
+      .delegate(fileAwareMedicineItemReader)
+      .resources(catalog.resources().toArray(Resource[]::new))
       .build();
 }
 ```
 
-Keep the existing classifier and reader-factory beans. Remove recursive `CSV_PATTERN`, `PathMatchingResourcePatternResolver`, and the global `multiCsvItemReader` bean.
+Keep the existing classifier and reader-factory beans. Remove `releaseItemReader(...)`.
 
-- [ ] **Step 4: Convert step configuration into explicit step factories**
+- [ ] **Step 4: Declare the fixed chunk step bean**
 
 ```java
-public Step loadReleaseStep(
-    MedicineRelease release,
+@Bean
+public Step medzLoaderStep(
     JobRepository jobRepository,
     PlatformTransactionManager transactionManager,
-    ItemReader<MedicineLine> reader,
-    ItemProcessor<MedicineLine, MedicineEvent> processor,
-    ItemWriter<MedicineEvent> writer) {
-  return new StepBuilder("loadRelease-" + release.version(), jobRepository)
-      .<MedicineLine, MedicineEvent>chunk(100, transactionManager)
-      .reader(reader)
-      .processor(processor)
-      .writer(writer)
+    ItemReader<MedicineLine> multiCsvItemReader,
+    ItemProcessor<MedicineLine, MedicineEvent> medicineItemProcessor,
+    ItemWriter<MedicineEvent> medicineCompositeItemWriter) {
+  return new StepBuilder("medzLoaderStep", jobRepository)
+      .<MedicineLine, MedicineEvent>chunk(100)
+      .transactionManager(transactionManager)
+      .reader(multiCsvItemReader)
+      .processor(medicineItemProcessor)
+      .writer(medicineCompositeItemWriter)
       .faultTolerant()
       .skip(ValidationException.class)
       .skipLimit(20)
       .listener(medzLoaderSkipListener())
       .build();
 }
+```
 
-public Step recordReleaseSyncStep(
-    MedicineRelease release,
+Remove `loadReleaseStep(...)`. Keep validation filtering set to `true`.
+
+- [ ] **Step 5: Verify GREEN**
+
+Run: `JAVA_HOME=/Library/Java/JavaVirtualMachines/temurin-25.jdk/Contents/Home ./mvnw -Dtest=MedicineItemReaderConfigurationTest,MedzLoaderStepConfigurationTest,MedicineItemProcessorConfigurationTest test`
+
+Expected: all fixed reader, step, and validation-filter tests pass.
+
+- [ ] **Step 6: Commit fixed reader and load-step beans**
+
+```bash
+git add src/main/java/dz/anisbouhadida/medzloader/batch/config/reader/MedicineItemReaderConfiguration.java src/main/java/dz/anisbouhadida/medzloader/batch/config/step/MedzLoaderStepConfiguration.java src/test/java/dz/anisbouhadida/medzloader/batch/config/reader/MedicineItemReaderConfigurationTest.java src/test/java/dz/anisbouhadida/medzloader/batch/config/step/MedzLoaderStepConfigurationTest.java
+git commit -m "refactor: restore fixed batch reader and load step"
+```
+
+### Task 3: Simplify History Persistence to Job and Release Identity
+
+**Files:**
+- Modify: `src/main/java/dz/anisbouhadida/medzloader/domain/model/DataSyncHistory.java`
+- Modify: `src/main/java/dz/anisbouhadida/medzloader/infrastructure/jdbc/repository/DataSyncHistoryRepository.java`
+- Modify: `src/main/resources/sql/write/insert-data-sync-history.sql`
+- Modify: `src/main/resources/sql/ddl.sql`
+- Modify: `src/main/resources/sql/nuke-reset.sql`
+- Modify: `src/test/java/dz/anisbouhadida/medzloader/infrastructure/jdbc/repository/DataSyncHistoryRepositoryTest.java`
+
+- [ ] **Step 1: Write failing batch-persistence tests**
+
+```java
+@Test
+void appendAll_shouldBatchEveryReleaseForOneJobExecution() {
+  var histories = List.of(
+      new DataSyncHistory("2026-03", Path.of("2026-03"), 41L),
+      new DataSyncHistory("2026-04", Path.of("2026-04"), 41L));
+
+  repository.appendAll(histories);
+
+  var parameters = ArgumentCaptor.forClass(SqlParameterSource[].class);
+  verify(jdbcTemplate).batchUpdate(anyString(), parameters.capture());
+  assertThat(parameters.getValue()).hasSize(2);
+  assertThat(parameters.getValue()[1].getValue("releaseVersion")).isEqualTo("2026-04");
+  assertThat(parameters.getValue()[1].getValue("jobExecutionId")).isEqualTo(41L);
+}
+```
+
+- [ ] **Step 2: Verify RED**
+
+Run: `JAVA_HOME=/Library/Java/JavaVirtualMachines/temurin-25.jdk/Contents/Home ./mvnw -Dtest=DataSyncHistoryRepositoryTest test`
+
+Expected: compilation fails because `DataSyncHistory` still contains step statistics and `appendAll` is absent.
+
+- [ ] **Step 3: Simplify the record and batch repository**
+
+```java
+public record DataSyncHistory(
+    String releaseVersion, Path sourceDirectory, long jobExecutionId) {}
+```
+
+```java
+public void appendAll(List<DataSyncHistory> histories) {
+  var parameters = histories.stream()
+      .map(history -> new MapSqlParameterSource()
+          .addValue("releaseVersion", history.releaseVersion())
+          .addValue("sourceDirectory", history.sourceDirectory().toString())
+          .addValue("jobExecutionId", history.jobExecutionId()))
+      .toArray(SqlParameterSource[]::new);
+  if (parameters.length > 0) {
+    jdbcTemplate.batchUpdate(INSERT_SQL, parameters);
+  }
+}
+```
+
+- [ ] **Step 4: Align SQL and DDL**
+
+```sql
+INSERT INTO data_sync_history (
+    release_version, source_directory, job_execution_id
+) VALUES (
+    :releaseVersion, :sourceDirectory, :jobExecutionId
+)
+ON CONFLICT (job_execution_id, release_version) DO NOTHING;
+```
+
+Replace the current history table with the approved `sync_id`, `release_version`, `source_directory`, `synced_at`, and `job_execution_id` definition. Add `UNIQUE (job_execution_id, release_version)` and index `(release_version DESC, synced_at DESC)`. Keep `data_sync_history` in `nuke-reset.sql`.
+
+- [ ] **Step 5: Verify GREEN**
+
+Run: `JAVA_HOME=/Library/Java/JavaVirtualMachines/temurin-25.jdk/Contents/Home ./mvnw -Dtest=DataSyncHistoryRepositoryTest,MedicineSqlUtilsTest test`
+
+Expected: repository binding and SQL resource tests pass.
+
+- [ ] **Step 6: Commit simplified history persistence**
+
+```bash
+git add src/main/java/dz/anisbouhadida/medzloader/domain/model/DataSyncHistory.java src/main/java/dz/anisbouhadida/medzloader/infrastructure/jdbc/repository/DataSyncHistoryRepository.java src/main/resources/sql/write/insert-data-sync-history.sql src/main/resources/sql/ddl.sql src/main/resources/sql/nuke-reset.sql src/test/java/dz/anisbouhadida/medzloader/infrastructure/jdbc/repository/DataSyncHistoryRepositoryTest.java
+git commit -m "refactor: persist job-level release history"
+```
+
+### Task 4: Add a Step-Scoped Metadata Tasklet and Fixed Job Flow
+
+**Files:**
+- Modify: `src/main/java/dz/anisbouhadida/medzloader/batch/config/step/MedzLoaderStepConfiguration.java`
+- Modify: `src/main/java/dz/anisbouhadida/medzloader/batch/config/job/MedzLoaderJobConfiguration.java`
+- Delete: `src/main/java/dz/anisbouhadida/medzloader/batch/tasklet/RecordReleaseSyncTasklet.java`
+- Delete: `src/test/java/dz/anisbouhadida/medzloader/batch/tasklet/RecordReleaseSyncTaskletTest.java`
+- Modify: `src/test/java/dz/anisbouhadida/medzloader/batch/config/step/MedzLoaderStepConfigurationTest.java`
+- Modify: `src/test/java/dz/anisbouhadida/medzloader/batch/config/job/MedzLoaderJobConfigurationTest.java`
+
+- [ ] **Step 1: Write failing fixed-flow and tasklet tests**
+
+Test the tasklet bean directly with two releases and job execution ID `41`:
+
+```java
+@Test
+void recordSyncHistoryTasklet_shouldAppendEveryCatalogRelease() throws Exception {
+  var catalog = MedicineReleaseCatalog.from(List.of(marchRelease, aprilRelease));
+  var tasklet = configuration.recordSyncHistoryTasklet(catalog, repository, 41L);
+
+  assertThat(tasklet.execute(contribution, chunkContext)).isEqualTo(RepeatStatus.FINISHED);
+  verify(repository).appendAll(List.of(
+      new DataSyncHistory("2026-03", Path.of("2026-03"), 41L),
+      new DataSyncHistory("2026-04", Path.of("2026-04"), 41L)));
+}
+```
+
+Test the fixed job composition:
+
+```java
+@Test
+void medzLoaderJob_shouldContainFixedLoadAndHistorySteps() {
+  var job = configuration.medzLoaderJob(jobRepository, medzLoaderStep, recordSyncHistoryStep);
+
+  assertThat(((SimpleJob) job).getStepNames())
+      .containsExactly("medzLoaderStep", "recordSyncHistoryStep");
+}
+```
+
+- [ ] **Step 2: Verify RED**
+
+Run: `JAVA_HOME=/Library/Java/JavaVirtualMachines/temurin-25.jdk/Contents/Home ./mvnw -Dtest=MedzLoaderStepConfigurationTest,MedzLoaderJobConfigurationTest test`
+
+Expected: tests fail because configuration still dynamically generates release-specific steps.
+
+- [ ] **Step 3: Declare the step-scoped standard tasklet and history step**
+
+```java
+@Bean
+@StepScope
+Tasklet recordSyncHistoryTasklet(
+    MedicineReleaseCatalog catalog,
+    DataSyncHistoryRepository repository,
+    @Value("#{jobExecution.id}") Long jobExecutionId) {
+  return (contribution, chunkContext) -> {
+    var histories = catalog.releases().stream()
+        .map(release -> new DataSyncHistory(
+            release.version(), release.relativeDirectory(), jobExecutionId))
+        .toList();
+    repository.appendAll(histories);
+    return RepeatStatus.FINISHED;
+  };
+}
+
+@Bean
+Step recordSyncHistoryStep(
     JobRepository jobRepository,
-    JobExplorer jobExplorer,
     PlatformTransactionManager transactionManager,
-    DataSyncHistoryRepository repository) {
-  var tasklet = new RecordReleaseSyncTasklet(
-      release.version(), release.relativeDirectory(), "loadRelease-" + release.version(),
-      jobExplorer, repository);
-  return new StepBuilder("recordReleaseSync-" + release.version(), jobRepository)
-      .tasklet(tasklet, transactionManager)
+    Tasklet recordSyncHistoryTasklet) {
+  return new StepBuilder("recordSyncHistoryStep", jobRepository)
+      .tasklet(recordSyncHistoryTasklet, transactionManager)
       .build();
 }
 ```
 
-Remove the single global `medzLoaderStep` bean. Keep creation methods focused and package-visible where tests need direct access.
+Delete the custom `RecordReleaseSyncTasklet` class and its obsolete test after the bean-level test is green.
 
-- [ ] **Step 5: Run configuration tests**
-
-Run: `./mvnw -Dtest=MedicineItemReaderConfigurationTest,MedzLoaderStepConfigurationTest test`
-
-Expected: all tests pass.
-
-- [ ] **Step 6: Commit reader and step factories**
-
-```bash
-git add src/main/java/dz/anisbouhadida/medzloader/batch/config/reader/MedicineItemReaderConfiguration.java src/main/java/dz/anisbouhadida/medzloader/batch/config/step/MedzLoaderStepConfiguration.java src/test/java/dz/anisbouhadida/medzloader/batch/config/reader/MedicineItemReaderConfigurationTest.java src/test/java/dz/anisbouhadida/medzloader/batch/config/step/MedzLoaderStepConfigurationTest.java
-git commit -m "refactor: scope batch steps to one release"
-```
-
-### Task 6: Generate the Chronological Job Flow
-
-**Files:**
-- Modify: `src/main/java/dz/anisbouhadida/medzloader/batch/config/job/MedzLoaderJobConfiguration.java`
-- Create: `src/test/java/dz/anisbouhadida/medzloader/batch/config/job/MedzLoaderJobConfigurationTest.java`
-
-- [ ] **Step 1: Write failing job-flow tests**
-
-```java
-@Test
-void medzLoaderJob_shouldPairLoadAndMetadataStepsChronologically() throws Exception {
-  when(discovery.discover()).thenReturn(List.of(aprilRelease, februaryRelease));
-
-  var job = configuration.medzLoaderJob(
-      jobRepository, transactionManager, discovery, readerConfiguration,
-      stepConfiguration, jobExplorer, classifier, processor, writer, historyRepository);
-
-  assertThat(((SimpleJob) job).getStepNames())
-      .containsExactly(
-          "loadRelease-2026-02",
-          "recordReleaseSync-2026-02",
-          "loadRelease-2026-04",
-          "recordReleaseSync-2026-04");
-}
-
-@Test
-void medzLoaderJob_shouldUseNoOpStepForEmptyInput() throws Exception {
-  when(discovery.discover()).thenReturn(List.of());
-
-  var job = configuration.medzLoaderJob(
-      jobRepository, transactionManager, discovery, readerConfiguration,
-      stepConfiguration, jobExplorer, classifier, processor, writer, historyRepository);
-
-  assertThat(((SimpleJob) job).getStepNames()).containsExactly("noReleases");
-}
-```
-
-- [ ] **Step 2: Run job configuration tests and verify failure**
-
-Run: `./mvnw -Dtest=MedzLoaderJobConfigurationTest test`
-
-Expected: compilation fails because the job method still accepts one global step.
-
-- [ ] **Step 3: Register discovery and build a deterministic sequential job**
+- [ ] **Step 4: Replace dynamic job construction with fixed flow composition**
 
 ```java
 @Bean
-MedicineReleaseDiscovery medicineReleaseDiscovery(MedzLoaderProperties properties) {
-  return new MedicineReleaseDiscovery(properties);
-}
-
-@Bean
-Job medzLoaderJob(
+public Job medzLoaderJob(
     JobRepository jobRepository,
-    PlatformTransactionManager transactionManager,
-    MedicineReleaseDiscovery discovery,
-    MedicineItemReaderConfiguration readerConfiguration,
-    MedzLoaderStepConfiguration stepConfiguration,
-    JobExplorer jobExplorer,
-    MedicineItemReaderClassifier classifier,
-    ItemProcessor<MedicineLine, MedicineEvent> processor,
-    ItemWriter<MedicineEvent> writer,
-    DataSyncHistoryRepository historyRepository) throws IOException {
-  var releases = discovery.discover().stream()
-      .sorted(Comparator.comparing(MedicineRelease::period))
-      .toList();
-  var jobBuilder = new JobBuilder("medzLoaderJob", jobRepository)
-      .incrementer(new RunIdIncrementer());
-  if (releases.isEmpty()) {
-    return jobBuilder.start(noReleasesStep(jobRepository, transactionManager)).build();
-  }
-
-  var steps = new ArrayList<Step>();
-  for (var release : releases) {
-    var reader = readerConfiguration.releaseItemReader(release, classifier);
-    steps.add(stepConfiguration.loadReleaseStep(
-        release, jobRepository, transactionManager, reader, processor, writer));
-    steps.add(stepConfiguration.recordReleaseSyncStep(
-        release, jobRepository, jobExplorer, transactionManager, historyRepository));
-  }
-  var flow = jobBuilder.start(steps.getFirst());
-  steps.stream().skip(1).forEach(flow::next);
-  return flow.build();
+    Step medzLoaderStep,
+    Step recordSyncHistoryStep) {
+  return new JobBuilder("medzLoaderJob", jobRepository)
+      .incrementer(new RunIdIncrementer())
+      .start(medzLoaderStep)
+      .next(recordSyncHistoryStep)
+      .build();
 }
 ```
 
-Build `noReleases` with a tasklet returning `RepeatStatus.FINISHED`. Do not add an async executor or split flow.
+Remove release discovery, reader configuration, processor, writer, transaction manager, dynamic arrays, sorting, and no-op logic from job configuration.
 
-- [ ] **Step 4: Run job configuration tests**
+- [ ] **Step 5: Verify GREEN**
 
-Run: `./mvnw -Dtest=MedzLoaderJobConfigurationTest test`
+Run: `JAVA_HOME=/Library/Java/JavaVirtualMachines/temurin-25.jdk/Contents/Home ./mvnw -Dtest=MedzLoaderStepConfigurationTest,MedzLoaderJobConfigurationTest test`
 
-Expected: chronological and empty-input tests pass.
+Expected: tasklet mapping and fixed two-step job tests pass.
 
-- [ ] **Step 5: Commit dynamic job configuration**
+- [ ] **Step 6: Commit fixed Spring Batch flow composition**
 
 ```bash
-git add src/main/java/dz/anisbouhadida/medzloader/batch/config/job/MedzLoaderJobConfiguration.java src/test/java/dz/anisbouhadida/medzloader/batch/config/job/MedzLoaderJobConfigurationTest.java
-git commit -m "feat: load releases in chronological job steps"
+git add src/main/java/dz/anisbouhadida/medzloader/batch/config/step/MedzLoaderStepConfiguration.java src/main/java/dz/anisbouhadida/medzloader/batch/config/job/MedzLoaderJobConfiguration.java src/main/java/dz/anisbouhadida/medzloader/batch/tasklet/RecordReleaseSyncTasklet.java src/test/java/dz/anisbouhadida/medzloader/batch/tasklet/RecordReleaseSyncTaskletTest.java src/test/java/dz/anisbouhadida/medzloader/batch/config/step/MedzLoaderStepConfigurationTest.java src/test/java/dz/anisbouhadida/medzloader/batch/config/job/MedzLoaderJobConfigurationTest.java
+git commit -m "refactor: compose sync history with fixed batch steps"
 ```
 
-### Task 7: Verify Success, Failure, and Restart Behavior
+### Task 5: Verify Lifecycle, Restart Semantics, and Documentation
 
 **Files:**
-- Create: `src/test/java/dz/anisbouhadida/medzloader/batch/ReleaseSyncJobTest.java`
+- Modify: `src/test/java/dz/anisbouhadida/medzloader/batch/ReleaseSyncJobTest.java`
 - Modify: `README.md`
+- Modify: `pom.xml` only if the existing Java 25 Mockito premain configuration is still required.
 
-- [ ] **Step 1: Add PostgreSQL-backed job-flow tests**
+- [ ] **Step 1: Update PostgreSQL lifecycle tests for multiple release rows**
 
-Use `@SpringBatchTest`, `@SpringBootTest`, `@ActiveProfiles("test")`, `JobLauncherTestUtils`, `JdbcTemplate`, and `@TempDir`. Override `medz.loader.input-dir` with `@DynamicPropertySource`. Create valid minimal CSV fixtures using the exact headers and column order from `MedicineCsvColumns`.
+Create two header-only releases in the static test catalog and assert both rows after success:
 
 ```java
 @Test
-void job_shouldAppendOneHistoryRowAfterACompleteRelease() throws Exception {
-  createValidRelease("2026-04");
-
-  var execution = jobLauncherTestUtils.launchJob(uniqueParameters());
+void job_shouldAppendEveryReleaseAfterCompleteLoad() throws Exception {
+  var execution = jobOperator.start(medzLoaderJob, uniqueParameters());
 
   assertThat(execution.getStatus()).isEqualTo(BatchStatus.COMPLETED);
-  assertThat(jdbcTemplate.queryForMap(
-      "SELECT release_version, source_directory FROM data_sync_history"))
-      .containsEntry("release_version", "2026-04")
-      .containsEntry("source_directory", "2026-04");
-}
-
-@Test
-void job_shouldNotAppendHistoryWhenReleaseLoadingFails() throws Exception {
-  createReleaseWithMalformedNomenclature("2026-04");
-
-  var execution = jobLauncherTestUtils.launchJob(uniqueParameters());
-
-  assertThat(execution.getStatus()).isEqualTo(BatchStatus.FAILED);
-  assertThat(jdbcTemplate.queryForObject(
-      "SELECT count(*) FROM data_sync_history WHERE release_version = '2026-04'", Long.class))
-      .isZero();
-}
-```
-
-Define the fixture and job-parameter helpers explicitly:
-
-```java
-private static void createValidRelease(String version) throws IOException {
-  var directory = Files.createDirectories(inputDirectory.resolve(version));
-  writeHeader(directory.resolve("nomenclature.csv"), MedicineCsvColumns.nomenclatureFields());
-  writeHeader(directory.resolve("non_renouveles.csv"), MedicineCsvColumns.nonRenewalFields());
-  writeHeader(directory.resolve("retraits.csv"), MedicineCsvColumns.withdrawalFields());
-}
-
-private static void createReleaseWithMalformedNomenclature(String version) throws IOException {
-  createValidRelease(version);
-  Files.writeString(
-      inputDirectory.resolve(version).resolve("nomenclature.csv"),
-      "not-an-integer\n",
-      StandardOpenOption.APPEND);
-}
-
-private static void writeHeader(Path file, String[] fields) throws IOException {
-  Files.writeString(file, String.join(",", fields) + System.lineSeparator());
-}
-
-private static JobParameters uniqueParameters() {
-  return new JobParametersBuilder()
-      .addLong("test.id", System.nanoTime(), true)
-      .toJobParameters();
-}
-```
-
-Add a two-release test proving `2026-03` history remains when `2026-04` fails:
-
-```java
-@Test
-void job_shouldKeepEarlierReleaseHistoryWhenLaterReleaseFails() throws Exception {
-  createValidRelease("2026-03");
-  createReleaseWithMalformedNomenclature("2026-04");
-
-  var execution = jobLauncherTestUtils.launchJob(uniqueParameters());
-
-  assertThat(execution.getStatus()).isEqualTo(BatchStatus.FAILED);
   assertThat(jdbcTemplate.queryForList(
       "SELECT release_version FROM data_sync_history ORDER BY release_version", String.class))
-      .containsExactly("2026-03");
+      .containsExactly("2026-03", "2026-04");
 }
 ```
 
-For restart behavior, define a nested repository and test configuration:
+Retain the malformed-file test and assert the load failure leaves `data_sync_history` empty. Add a repository-level PostgreSQL assertion that inserting the same `(job_execution_id, release_version)` twice leaves one row, and verify the latest query returns `2026-04`.
 
-```java
-static final class FailingOnceDataSyncHistoryRepository extends DataSyncHistoryRepository {
-  private final AtomicBoolean failNext = new AtomicBoolean();
+- [ ] **Step 2: Run lifecycle tests against PostgreSQL**
 
-  FailingOnceDataSyncHistoryRepository(NamedParameterJdbcTemplate jdbcTemplate) {
-    super(jdbcTemplate);
-  }
+Run with the configured test datasource: `JAVA_HOME=/Library/Java/JavaVirtualMachines/temurin-25.jdk/Contents/Home ./mvnw -Dtest=ReleaseSyncJobTest test`
 
-  void failNextAppend() {
-    failNext.set(true);
-  }
+Expected: successful job inserts both releases, failed load inserts none, duplicate job/release is idempotent, and latest release is `2026-04`.
 
-  @Override
-  public void append(DataSyncHistory history) {
-    if (failNext.compareAndSet(true, false)) {
-      throw new DataAccessResourceFailureException("metadata failure for restart test");
-    }
-    super.append(history);
-  }
-}
+- [ ] **Step 3: Update README architecture and query**
 
-@TestConfiguration
-static class RestartTestConfiguration {
-  @Bean
-  @Primary
-  FailingOnceDataSyncHistoryRepository failingOnceHistoryRepository(
-      NamedParameterJdbcTemplate jdbcTemplate) {
-    return new FailingOnceDataSyncHistoryRepository(jdbcTemplate);
-  }
-}
-```
-
-Launch twice with identical identifying parameters and verify persisted-step reuse:
-
-```java
-@Test
-void restart_shouldRetryMetadataWithoutRerunningCompletedLoadStep() throws Exception {
-  createValidRelease("2026-04");
-  failingHistoryRepository.failNextAppend();
-  var parameters = uniqueParameters();
-
-  var first = jobLauncherTestUtils.launchJob(parameters);
-  var second = jobLauncherTestUtils.launchJob(parameters);
-
-  assertThat(first.getStatus()).isEqualTo(BatchStatus.FAILED);
-  assertThat(second.getStatus()).isEqualTo(BatchStatus.COMPLETED);
-  assertThat(jdbcTemplate.queryForObject(
-      "SELECT count(*) FROM data_sync_history WHERE release_version = '2026-04'", Long.class))
-      .isEqualTo(1L);
-  assertThat(jobExplorer.getStepExecutionCount(
-      second.getJobInstance(), "loadRelease-2026-04"))
-      .isEqualTo(1L);
-}
-```
-
-- [ ] **Step 2: Run the integration test and observe the initial failure**
-
-Run: `./mvnw -Dtest=ReleaseSyncJobTest test`
-
-Expected: tests fail until the test schema is initialized from `sql/ddl.sql` and fixtures match the reader contract.
-
-- [ ] **Step 3: Make test setup deterministic**
-
-Add `@Sql(scripts = "/sql/ddl.sql", executionPhase = BEFORE_TEST_CLASS)` and clean business tables in `@BeforeEach` using the existing reset approach. Keep Spring Batch metadata so restart assertions use real persisted executions. Ensure fixture dates use the configured `Africa/Algiers` conversion and invalid-row filtering is asserted through `filter_count`, not treated as a job failure.
-
-- [ ] **Step 4: Run integration tests**
-
-Run: `./mvnw -Dtest=ReleaseSyncJobTest test`
-
-Expected: success, fatal failure, earlier-release persistence, filtering counts, and restart tests pass against PostgreSQL.
-
-- [ ] **Step 5: Update README input and database documentation**
-
-Replace language saying the loader recursively accepts arbitrary CSV layout with the strict direct-child contract:
+Document the fixed flow exactly:
 
 ```text
-input/
-└── YYYY-MM/
-    ├── nomenclature.csv
-    ├── non_renouveles.csv
-    └── retraits.csv
+medzLoaderJob
+  -> medzLoaderStep (chunk ETL over all validated release resources)
+  -> recordSyncHistoryStep (transactional tasklet)
 ```
 
-Document that releases run oldest-first and add `data_sync_history` to the database table list. Include this downstream example:
+Document `synced_at` and the latest query:
 
 ```sql
-SELECT release_version, loaded_at
+SELECT release_version, source_directory, synced_at
 FROM data_sync_history
-ORDER BY release_version DESC, loaded_at DESC
+ORDER BY release_version DESC, synced_at DESC
 LIMIT 1;
 ```
 
-- [ ] **Step 6: Run formatting and the full verification build**
+Remove descriptions of per-release dynamic steps, step statistics in the business history table, and `loaded_at`.
 
-Run: `./mvnw spotless:apply`
+- [ ] **Step 4: Format and run full verification**
 
-Expected: Google Java formatting is applied only to touched Java sources.
+Run: `JAVA_HOME=/Library/Java/JavaVirtualMachines/temurin-25.jdk/Contents/Home ./mvnw com.diffplug.spotless:spotless-maven-plugin:3.6.0:apply`
 
-Run: `./mvnw clean verify`
+Run: `JAVA_HOME=/Library/Java/JavaVirtualMachines/temurin-25.jdk/Contents/Home ./mvnw clean verify`
 
-Expected: all unit and PostgreSQL-backed tests pass, Spotless passes, JaCoCo bundle line coverage remains at or above `0.50`, and source/Javadoc artifacts build.
+Expected: all tests pass, PostgreSQL lifecycle coverage passes, Spotless is clean, JaCoCo remains at or above `0.50`, and source/Javadoc artifacts build.
 
-- [ ] **Step 7: Review the final diff for scope and invariants**
+- [ ] **Step 5: Audit scope and invariants**
 
-Run: `git diff --check && git diff --stat && git status --short`
+Run: `git diff --check && git status --short`
 
-Expected: no whitespace errors; only release-sync files plus pre-existing user changes are present. Confirm the five-column medicine business key, optimistic upsert predicate, validation filtering, CSV column arrays, and Java 25 instance `main()` remain unchanged.
+Confirm with `rg` that:
 
-- [ ] **Step 8: Commit integration coverage and docs**
+```text
+MedzLoaderJobConfiguration contains one .start(medzLoaderStep).next(recordSyncHistoryStep)
+MedzLoaderStepConfiguration declares fixed @Bean steps
+MedicineItemReaderConfiguration declares multiCsvItemReader as @Bean
+no production code references loadRelease- or recordReleaseSync-
+beanValidatingItemProcessor still calls setFilter(true)
+upsert-medicine.sql still contains medicine.version = excluded.version
+```
+
+Do not commit unrelated pre-existing worktree changes. If feature files overlap those changes, report the boundary rather than broad-staging them.
+
+- [ ] **Step 6: Commit lifecycle coverage and documentation**
 
 ```bash
-git add src/test/java/dz/anisbouhadida/medzloader/batch/ReleaseSyncJobTest.java README.md
-git commit -m "test: verify release sync lifecycle"
+git add src/test/java/dz/anisbouhadida/medzloader/batch/ReleaseSyncJobTest.java README.md pom.xml
+git commit -m "test: verify fixed release sync flow"
 ```
