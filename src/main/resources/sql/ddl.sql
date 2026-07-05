@@ -214,3 +214,35 @@ CREATE INDEX IF NOT EXISTS idx_meh_updated
 
 CREATE INDEX IF NOT EXISTS idx_meh_medicine_updated
     ON medicine_event_history (medicine_id, updated_at DESC);
+
+
+-- =====================================================
+-- SUCCESSFUL RELEASE SYNCHRONIZATION HISTORY
+-- One row per completed release load-step execution
+-- =====================================================
+
+CREATE TABLE IF NOT EXISTS data_sync_history (
+
+    sync_id BIGSERIAL PRIMARY KEY,
+
+    release_version VARCHAR(7) NOT NULL,
+    source_directory TEXT NOT NULL,
+    loaded_at TIMESTAMPTZ NOT NULL DEFAULT now(),
+
+    job_execution_id BIGINT NOT NULL,
+    load_step_execution_id BIGINT NOT NULL,
+
+    read_count BIGINT NOT NULL,
+    write_count BIGINT NOT NULL,
+    filter_count BIGINT NOT NULL,
+    skip_count BIGINT NOT NULL,
+
+    CONSTRAINT chk_data_sync_release_version
+        CHECK (release_version ~ '^[0-9]{4}-(0[1-9]|1[0-2])$'),
+
+    CONSTRAINT uq_data_sync_load_step_execution
+        UNIQUE (load_step_execution_id)
+    );
+
+CREATE INDEX IF NOT EXISTS idx_data_sync_latest_release
+    ON data_sync_history (release_version DESC, loaded_at DESC);
