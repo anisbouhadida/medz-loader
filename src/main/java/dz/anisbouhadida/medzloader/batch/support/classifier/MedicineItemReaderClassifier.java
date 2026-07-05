@@ -28,15 +28,10 @@ public class MedicineItemReaderClassifier {
   /// @return the reader configured for the detected file type
   /// @throws IllegalArgumentException if the resource does not match any known type
   public FlatFileItemReader<? extends MedicineLine> classify(@NonNull String currentResource) {
-
-    if (currentResource.contains("nomenclature")) {
-      return readerFactory.createNomenclatureReader();
-    } else if (currentResource.contains("retraits")) {
-      return readerFactory.createWithdrawalReader();
-    } else if (currentResource.contains("non_renouveles")) {
-      return readerFactory.createNonRenewalReader();
-    }
-
-    throw new IllegalArgumentException("Unknown file type for resource: " + currentResource);
+    return switch (MedicineCsvFileType.fromFilename(currentResource)) {
+      case NOMENCLATURE -> readerFactory.createNomenclatureReader();
+      case WITHDRAWAL -> readerFactory.createWithdrawalReader();
+      case NON_RENEWAL -> readerFactory.createNonRenewalReader();
+    };
   }
 }

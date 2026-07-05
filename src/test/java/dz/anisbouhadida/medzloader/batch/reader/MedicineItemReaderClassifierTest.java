@@ -86,7 +86,7 @@ class MedicineItemReaderClassifierTest {
     void classify_should_throwIllegalArgumentException_when_filenameIsUnknown() {
       assertThatThrownBy(() -> classifier.classify("unknown_file.csv"))
           .isInstanceOf(IllegalArgumentException.class)
-          .hasMessageContaining("Unknown file type for resource: unknown_file.csv");
+          .hasMessage("Unknown medicine CSV file type: unknown_file.csv");
     }
 
     @Test
@@ -94,7 +94,7 @@ class MedicineItemReaderClassifierTest {
     void classify_should_throwIllegalArgumentException_when_filenameIsEmpty() {
       assertThatThrownBy(() -> classifier.classify(""))
           .isInstanceOf(IllegalArgumentException.class)
-          .hasMessageContaining("Unknown file type for resource: ");
+          .hasMessage("Unknown medicine CSV file type: ");
     }
   }
 }
