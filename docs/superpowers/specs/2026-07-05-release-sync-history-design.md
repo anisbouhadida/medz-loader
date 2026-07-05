@@ -2,9 +2,11 @@
 
 ## Goal
 
-Record an append-only history entry whenever one dated medicine release is loaded successfully. A downstream API can use this history to report which release is present in PostgreSQL and when it was synchronized.
+Record append-only synchronization history for every dated medicine release loaded by one successful Spring Batch job execution. A downstream API can query the latest `YYYY-MM` release while retaining the history of prior loads.
 
-The unit of synchronization is a release directory, not an individual CSV file. Each direct child of `medz.loader.input-dir` represents one release and must be named `YYYY-MM`, for example:
+## Input Contract
+
+`medz.loader.input-dir` contains direct release subdirectories named with a strict `YYYY-MM` format:
 
 ```text
 input/
@@ -18,133 +20,110 @@ input/
     └── retraits.csv
 ```
 
-## Release Discovery and Validation
+Every release directory must contain exactly one CSV recognized as `nomenclature`, one as `non_renouveles`, and one as `retraits`. Directory names, missing files, duplicates, unknown CSVs, and nested entries are validated before processing.
 
-At job construction time, the loader discovers the direct subdirectories of the configured input directory and parses each directory name as a strict `YearMonth` using `yyyy-MM`. Releases are sorted in ascending chronological order before steps are created. Sequential processing preserves the medicine optimistic-versioning behavior and prevents an older release from racing with a newer release.
+## Spring Batch Architecture
 
-Before any release is loaded, discovery validates the complete input set:
+The job uses fixed Spring-managed beans and standard Spring Batch flow composition:
 
-- every discovered child is a directory named `YYYY-MM`;
-- each release contains exactly one file recognized as `nomenclature`;
-- each release contains exactly one file recognized as `non_renouveles`;
-- each release contains exactly one file recognized as `retraits`; and
-- no additional CSV file is present in a release directory.
+1. `medzLoaderStep` is the existing chunk-oriented ETL step. Its `MultiResourceItemReader` receives all validated CSV resources, ordered first by release month and then by file type.
+2. `recordSyncHistoryStep` is a tasklet step. It appends one metadata row for every validated release represented in the completed load.
+3. `medzLoaderJob` is a fixed job defined with `.start(medzLoaderStep).next(recordSyncHistoryStep)`.
 
-Invalid input fails job creation with a message identifying the release and violation. Existing filename classification remains authoritative, so filename conventions and their tests continue to move together.
+Spring Batch therefore owns step construction, flow transitions, transactions, job metadata, and restart decisions. The history step cannot start unless the load step completes successfully. There are no dynamically generated steps, partitions, custom launch loops, or per-release child jobs.
 
-## Batch Architecture and Data Flow
+Custom implementation is limited to behavior the framework cannot infer:
 
-The job is generated as a chronological sequence of two steps per release:
+- validating the Medz `YYYY-MM` directory and three-file contract;
+- carrying the immutable discovered release catalog to the reader and tasklet; and
+- inserting the business synchronization rows.
 
-1. `loadRelease-YYYY-MM` uses the existing `MultiResourceItemReader`, validation processor, mapper, and composite JDBC writer to process that release's three files using the existing chunk transaction boundary.
-2. `recordReleaseSync-YYYY-MM` inserts the successful synchronization metadata in its own transaction.
+## Release Catalog
 
-The metadata step runs only after the corresponding load step completes. If reading, processing, or writing fails, Spring Batch rolls back the active chunk, stops the flow, and does not execute that release's metadata step. Chunks committed before the failure retain the repository's existing restart semantics.
+At application startup, a singleton discovery component creates an immutable, chronologically sorted release catalog. Both fixed steps consume this same catalog:
 
-If metadata insertion itself fails, the job fails. On restart, Spring Batch skips the already-completed load step and retries the metadata step, avoiding unnecessary data reprocessing.
+- reader configuration flattens its ordered CSV resources into one `MultiResourceItemReader`;
+- the history tasklet inserts its release descriptors after the load step succeeds.
 
-Later releases do not run after an earlier release fails. Earlier releases whose load and metadata steps completed remain valid and queryable.
+Using one immutable catalog prevents the reader and metadata tasklet from observing different filesystem states during a job execution. The existing filename classifier remains authoritative for selecting format-specific flat-file readers.
+
+An empty input directory is valid: the chunk step reads no items and the history step inserts no rows.
 
 ## Persistence Model
 
-Add the following table to `src/main/resources/sql/ddl.sql`:
+`data_sync_history` stores successful business-level release loads:
 
 ```sql
 CREATE TABLE IF NOT EXISTS data_sync_history (
     sync_id BIGSERIAL PRIMARY KEY,
     release_version VARCHAR(7) NOT NULL,
     source_directory TEXT NOT NULL,
-    loaded_at TIMESTAMPTZ NOT NULL DEFAULT now(),
+    synced_at TIMESTAMPTZ NOT NULL DEFAULT now(),
     job_execution_id BIGINT NOT NULL,
-    load_step_execution_id BIGINT NOT NULL,
-    read_count BIGINT NOT NULL,
-    write_count BIGINT NOT NULL,
-    filter_count BIGINT NOT NULL,
-    skip_count BIGINT NOT NULL,
 
     CONSTRAINT chk_data_sync_release_version
         CHECK (release_version ~ '^[0-9]{4}-(0[1-9]|1[0-2])$'),
-    CONSTRAINT uq_data_sync_load_step_execution
-        UNIQUE (load_step_execution_id)
+    CONSTRAINT uq_data_sync_job_release
+        UNIQUE (job_execution_id, release_version)
 );
 ```
 
-An index on `(release_version DESC, loaded_at DESC)` supports both latest-release and release-history queries. The release version is intentionally not unique: an intentional load in a later job execution appends another audit row. The load step execution ID is unique so retrying the metadata step cannot duplicate the same successful load.
+An index on `(release_version DESC, synced_at DESC)` supports the latest-release query. `release_version` is intentionally not globally unique: a later successful job may reload the same release and append another historical row. The composite unique constraint makes a restarted history step idempotent within the same job execution.
 
-`source_directory` stores the normalized path relative to `medz.loader.input-dir`, normally the same `YYYY-MM` value. This avoids persisting machine-specific absolute paths.
+`source_directory` stores the normalized path relative to `medz.loader.input-dir`, avoiding machine-specific absolute paths. Spring Batch tables remain the source for operational attempts, failures, and detailed read/write counts; the business table does not duplicate those concerns.
 
-Counts come from the completed load step:
+The insert SQL lives in `src/main/resources/sql/write/insert-data-sync-history.sql` and uses `ON CONFLICT (job_execution_id, release_version) DO NOTHING`.
 
-- `read_count`: rows read from all three files;
-- `write_count`: events passed to the composite writer;
-- `filter_count`: rows removed by validation/filtering;
-- `skip_count`: total read, process, and write skips.
+## Data Flow and Transactions
 
-The insert statement lives at `src/main/resources/sql/write/insert-data-sync-history.sql` and is loaded through `MedicineSqlUtils.loadSql(...)`, consistent with existing SQL organization.
+The reader processes all release resources through the existing pipeline:
 
-## Components
+```text
+immutable release catalog
+  -> MultiResourceItemReader
+  -> FileAwareMedicineItemReader
+  -> validating/composite processor
+  -> composite JDBC writer
+  -> recordSyncHistoryStep
+```
 
-### Release descriptor and discovery
+The load step retains chunk transactions and restart state. A load failure rolls back the active chunk and prevents the history step from running. Previously committed chunks retain normal Spring Batch restart semantics, but no business sync row is written until the complete load step succeeds.
 
-An immutable release descriptor contains the `YearMonth`, relative directory, and the three ordered CSV resources. A focused discovery component reads `MedzLoaderProperties`, validates the directory contract, and returns immutable descriptors sorted by release month.
-
-### Release-scoped reader
-
-Reader configuration creates a `MultiResourceItemReader` for a supplied release descriptor rather than recursively combining every release. It keeps `FileAwareMedicineItemReader` and the existing filename classifier unchanged.
-
-### Sync history writer
-
-A small JDBC repository inserts one immutable sync-history record. A release metadata tasklet reads the completed load `StepExecution` statistics and delegates the insert. The repository owns persistence only; orchestration stays in batch configuration.
-
-### Dynamic job configuration
-
-Job configuration turns the discovered releases into a deterministic sequence of load and metadata steps. Step names include the release version so Spring Batch restart state is stable and inspectable.
-
-When discovery returns no releases, the job contains one no-op step so it remains a valid Spring Batch job and completes without inserting history.
-
-## Failure and Restart Semantics
-
-- Validation failures retain current behavior: filtered records do not fail a release and are reflected in `filter_count`.
-- A fatal load failure prevents the release history insert and prevents later releases from starting.
-- A metadata insert failure fails the job; restarting retries metadata without rerunning a completed load step.
-- The unique load step execution ID makes a repeated metadata insert idempotent.
-- A later intentional execution of the same release creates a distinct load step execution and therefore appends a new history row.
-- An empty input directory produces a valid job with no release load or history rows.
-
-Spring Batch's own metadata tables remain the source for operational attempts and failures. `data_sync_history` contains successful business-level synchronizations only.
+The history tasklet runs in its own standard tasklet transaction and inserts all release rows as one batch operation. If persistence fails, Spring Batch marks the history step and job as failed. On restart, the completed load step is skipped and only the history step is retried. The unique job/release constraint prevents duplicates if a retry occurs after a partial or uncertain client outcome.
 
 ## Downstream Query Contract
 
-The future API can determine the newest data release with:
+The newest source release available in the database is:
 
 ```sql
-SELECT *
+SELECT release_version, source_directory, synced_at
 FROM data_sync_history
-ORDER BY release_version DESC, loaded_at DESC
+ORDER BY release_version DESC, synced_at DESC
 LIMIT 1;
 ```
 
-Ordering primarily by `release_version` answers which source release the database contains; `loaded_at` answers when that release was synchronized. Consumers can also filter by `release_version` to expose reload history.
+Consumers can order by `synced_at` or filter by `release_version` to expose complete synchronization history.
 
 ## Testing
 
-Unit tests follow the repository's JUnit 5, Mockito, AssertJ, `@Nested`, and `@DisplayName` conventions and cover:
+Tests follow the repository's JUnit 5, Mockito, AssertJ, `@Nested`, and `@DisplayName` conventions and cover:
 
-- strict `YYYY-MM` parsing and chronological sorting;
-- missing, duplicate, unknown, and extra CSV files;
-- one release descriptor containing the expected three resources;
-- deterministic load/metadata step ordering;
-- metadata mapping from a completed load step, including aggregate skip counts;
-- no metadata step after a failed load step;
-- metadata retry without rerunning a completed load step; and
-- repository SQL parameters and duplicate-step idempotency.
+- strict release discovery, validation, chronological ordering, and immutable resources;
+- a single global reader built from the complete catalog;
+- fixed bean names and the job transition `medzLoaderStep -> recordSyncHistoryStep`;
+- successful batch insertion of every catalog release;
+- idempotency for the same job execution and release;
+- no history rows when the load step fails;
+- restart behavior where a completed load step is skipped and history is retried;
+- validation failures remaining filtered rather than fatal; and
+- the PostgreSQL constraint and latest-release query.
 
-The DDL and JDBC behavior receive PostgreSQL-backed verification where the current test environment permits it. Final verification is `./mvnw clean verify`.
+Final verification is `./mvnw clean verify` with Java 25 and PostgreSQL available.
 
 ## Out of Scope
 
-- Exposing an HTTP or GraphQL API in this loader repository.
-- Recording failed synchronization attempts in the business table.
-- Deriving release versions from CSV contents or filenames.
-- Checksums and file-level audit rows.
-- Parallel release processing.
+- An HTTP or GraphQL API in this loader repository.
+- Failure-attempt duplication outside Spring Batch metadata.
+- File-level history rows or file checksums.
+- Parallel release processing or partitioning.
+- Dynamic step generation.
