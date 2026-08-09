@@ -8,22 +8,23 @@ import dz.anisbouhadida.medzloader.batch.support.properties.MedzLoaderProperties
 import java.io.IOException;
 import java.nio.file.Path;
 import lombok.RequiredArgsConstructor;
+import org.springframework.batch.core.configuration.annotation.StepScope;
 import org.springframework.batch.infrastructure.item.file.MultiResourceItemReader;
 import org.springframework.batch.infrastructure.item.file.ResourceAwareItemReaderItemStream;
 import org.springframework.batch.infrastructure.item.file.builder.MultiResourceItemReaderBuilder;
+import org.springframework.beans.factory.annotation.Value;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
 import org.springframework.core.io.support.PathMatchingResourcePatternResolver;
 
 /// Spring configuration that assembles the reader pipeline for medicine CSV files.
 ///
-/// It wires together a [MultiResourceItemReader] that scans all CSV files under
-/// the directory configured by the `medz.loader.input-dir` application property
-/// and delegates the actual reading to a [FileAwareMedicineItemReader], which in
-/// turn selects the correct column layout via a [MedicineItemReaderClassifier].
+/// It wires together a step-scoped [MultiResourceItemReader] that scans the CSV files in one
+/// release directory. The `release` job parameter names a direct child of the directory configured
+/// by `medz.loader.input-dir`. The reader delegates each file to a [FileAwareMedicineItemReader],
+/// which selects the correct column layout via a [MedicineItemReaderClassifier].
 ///
-/// The `file:` prefix and the `/**/*.csv` glob are appended automatically;
-/// the user only needs to supply the base directory path.
+/// The release parameter contract is validated before this reader is created.
 ///
 /// @author Anis Bouhadida
 /// @since 0.0.1
@@ -36,15 +37,14 @@ import org.springframework.core.io.support.PathMatchingResourcePatternResolver;
 @RequiredArgsConstructor
 public class MedicineItemReaderConfiguration {
 
-  /// Ant-style resource pattern used to discover all CSV files under the configured
-  /// input directory.
+  /// Resource pattern used to discover CSV files directly inside a release directory.
   ///
-  /// The `%s` placeholder is replaced at runtime by the normalized directory path
-  /// supplied via `medz.loader.input-dir`. For example, given an input directory of
-  /// `/data/medz`, the resolved pattern becomes `file:/data/medz/**/*.csv`.
+  /// The placeholders receive the configured input directory and the release directory supplied
+  /// as a job parameter. The non-recursive pattern ensures one job execution processes one release
+  /// and no nested directories.
   ///
   /// @see PathMatchingResourcePatternResolver
-  private static final String CSV_PATTERN = "file:%s/**/*.csv";
+  private static final String CSV_PATTERN = "file:%s/%s/*.csv";
 
   /// Typed configuration properties bound to the `medz.loader` namespace,
   /// injected by Lombok's `@RequiredArgsConstructor`.
@@ -52,24 +52,29 @@ public class MedicineItemReaderConfiguration {
   /// @see MedzLoaderProperties
   private final MedzLoaderProperties properties;
 
-  /// Creates a [MultiResourceItemReader] that discovers every `*.csv` file
-  /// under the directory defined by `medz.loader.input-dir` and feeds
-  /// them one by one to the [#fileAwareMedicineItemReader(MedicineItemReaderClassifier)] delegate.
+  /// Creates a step-scoped [MultiResourceItemReader] for one release directory.
+  ///
+  /// The `release` job parameter must name a direct child directory of `medz.loader.input-dir`.
+  /// Only CSV files directly inside that directory are fed to the
+  /// [#fileAwareMedicineItemReader(MedicineItemReaderClassifier)] delegate.
   ///
   /// @param fileAwareMedicineItemReader the resource-aware delegate reader that processes each
   /// individual CSV file
-  /// @return a multi-resource reader spanning all input CSV files
+  /// @param releaseDirectory the release directory name supplied by the `release` job parameter
+  /// @return a multi-resource reader spanning the selected release's CSV files
   /// @throws IOException if the resource pattern cannot be resolved
   @Bean
-  public MultiResourceItemReader<MedicineLine> multiCsvItemReader(
-      ResourceAwareItemReaderItemStream<MedicineLine> fileAwareMedicineItemReader)
+  @StepScope
+  public MultiResourceItemReader<MedicineLine> releaseCsvItemReader(
+      ResourceAwareItemReaderItemStream<MedicineLine> fileAwareMedicineItemReader,
+      @Value("#{jobParameters['release']}") String releaseDirectory)
       throws IOException {
-    var pattern = CSV_PATTERN.formatted(Path.of(properties.inputDir()));
+    var pattern = CSV_PATTERN.formatted(Path.of(properties.inputDir()), releaseDirectory);
     var resolver = new PathMatchingResourcePatternResolver();
     var resources = resolver.getResources(pattern);
 
     return new MultiResourceItemReaderBuilder<MedicineLine>()
-        .name("multiCsvItemReader")
+        .name("releaseCsvItemReader")
         .delegate(fileAwareMedicineItemReader)
         .resources(resources)
         .build();

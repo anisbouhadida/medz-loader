@@ -97,7 +97,7 @@ That means some parts are still evolving, contracts may continue to improve, and
 
 ## Features
 
-- Recursive discovery of all `*.csv` files under a configurable input directory.
+- Per-execution discovery of `*.csv` files from one release directory selected by a job parameter.
 - Support for the 3 expected medicine release file types:
   - `nomenclature.csv`
   - `non_renouveles.csv`
@@ -131,7 +131,7 @@ input/YYYY-MM/
 └── retraits.csv
 ```
 
-The loader scans recursively, so the `YYYY-MM` directory name is a project convention rather than a hard runtime requirement. What **does** matter is the filename contract:
+The `release` job parameter selects one direct child of the configured input directory. The directory name can follow any project convention, while the filename contract remains fixed:
 
 - filenames containing `nomenclature` are treated as nomenclature updates,
 - filenames containing `non_renouveles` are treated as non-renewals,
@@ -213,16 +213,16 @@ input/
 Run with Maven:
 
 ```bash
-./mvnw spring-boot:run
+./mvnw spring-boot:run -Dspring-boot.run.arguments="release=2025-11"
 ```
 
 Or run the packaged JAR:
 
 ```bash
-java -jar target/medz-loader-*.jar
+java -jar target/medz-loader-*.jar release=2025-11
 ```
 
-On startup, Spring Batch launches the configured job, scans the input directory recursively, and persists recognized medicine events into PostgreSQL.
+On startup, Spring Batch launches the configured job, reads CSV files directly inside `input/2025-11`, and persists recognized medicine events into PostgreSQL.
 
 ---
 
@@ -230,7 +230,7 @@ On startup, Spring Batch launches the configured job, scans the input directory 
 
 At a high level, the ETL pipeline is:
 
-1. A `MultiResourceItemReader` discovers every `**/*.csv` under `medz.loader.input-dir`.
+1. A step-scoped `MultiResourceItemReader` discovers `*.csv` files directly inside the release directory selected by the `release` job parameter.
 2. `FileAwareMedicineItemReader` switches delegate readers based on the current filename.
 3. A `BeanValidatingItemProcessor` filters invalid rows instead of failing the whole job.
 4. A classifier-based processor maps each CSV line into a sealed domain event:
@@ -273,7 +273,8 @@ The schema is designed for normalized storage and repeatable ingestion across mu
 
 The main typed properties are exposed through `MedzLoaderProperties`:
 
-- `medz.loader.input-dir`: base directory scanned recursively for CSV files.
+- `medz.loader.input-dir`: base directory containing one direct child directory per release.
+- `release` job parameter: directory name for the single release processed by the job execution.
 - `medz.loader.registration-zone-id`: source timezone used to convert registration dates to UTC timestamps for storage.
 
 Default values are currently defined in `src/main/resources/application.properties`.

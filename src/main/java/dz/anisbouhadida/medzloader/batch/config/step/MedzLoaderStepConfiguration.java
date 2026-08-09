@@ -33,7 +33,8 @@ public class MedzLoaderStepConfiguration {
   /// @param taskExecutor the executor used to run chunk processing on virtual threads
   /// @param jobRepository       the repository used to persist step metadata
   /// @param transactionManager  the transaction manager governing chunk boundaries
-  /// @param multiCsvItemReader          the reader supplying [MedicineLine] records
+  /// @param releaseCsvItemReader        the reader supplying [MedicineLine] records from the
+  /// selected release directory
   /// @param medicineItemProcessor       the processor transforming [MedicineLine] to
   /// [MedicineEvent]
   /// @param medicineCompositeItemWriter          the writer persisting [MedicineEvent] objects
@@ -43,13 +44,13 @@ public class MedzLoaderStepConfiguration {
       AsyncTaskExecutor taskExecutor,
       JobRepository jobRepository,
       PlatformTransactionManager transactionManager,
-      ItemReader<MedicineLine> multiCsvItemReader,
+      ItemReader<MedicineLine> releaseCsvItemReader,
       ItemProcessor<MedicineLine, MedicineEvent> medicineItemProcessor,
       ItemWriter<MedicineEvent> medicineCompositeItemWriter) {
     return new StepBuilder("medzLoaderStep", jobRepository)
         .<MedicineLine, MedicineEvent>chunk(1000)
         .transactionManager(transactionManager)
-        .reader(multiCsvItemReader)
+        .reader(releaseCsvItemReader)
         .processor(medicineItemProcessor)
         .writer(medicineCompositeItemWriter)
         .faultTolerant()
