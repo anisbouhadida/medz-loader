@@ -12,8 +12,8 @@ import org.springframework.validation.annotation.Validated;
 /// `medz.loader` prefix. Validated at startup so misconfigured deployments
 /// fail fast.
 ///
-/// The user only supplies the input directory path; the `file:` prefix and
-/// the `/**/*.csv` glob pattern are added automatically by the application.
+/// The input directory is the parent of all release directories. Each job execution supplies the
+/// name of one direct child through the `release` job parameter.
 ///
 /// A default value is provided in `application.properties` and can be
 /// overridden at runtime via an environment variable thanks to Spring Boot's
@@ -29,8 +29,8 @@ import org.springframework.validation.annotation.Validated;
 /// export MEDZ_LOADER_REGISTRATION_ZONE_ID=Africa/Algiers
 /// ```
 ///
-/// @param inputDir            path to the directory containing the input CSV files
-///                            (e.g. `/data/medz/input`).
+/// @param inputDir            path to the directory containing release directories
+///                            (e.g. `/data/medz/input`)
 /// @param registrationZoneId  time zone used when converting [java.time.LocalDateTime]
 ///                            registration dates to UTC timestamps for storage
 ///                            (e.g. `Africa/Algiers`).

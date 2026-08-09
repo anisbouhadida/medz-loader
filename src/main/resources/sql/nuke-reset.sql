@@ -4,6 +4,8 @@
 -- ============================================================
 
 DROP TABLE IF EXISTS
+    medicine_import_issue,
+    release_sync_history,
     medicine,
     medicine_status_history,
     nomenclature_event,
@@ -22,7 +24,7 @@ DROP TABLE IF EXISTS
 DROP SEQUENCE IF EXISTS
     BATCH_STEP_EXECUTION_SEQ,
     BATCH_JOB_EXECUTION_SEQ,
-    BATCH_JOB_SEQ
+    BATCH_JOB_INSTANCE_SEQ
     CASCADE;
 
 -- Drop possible leftover enum types from old schema

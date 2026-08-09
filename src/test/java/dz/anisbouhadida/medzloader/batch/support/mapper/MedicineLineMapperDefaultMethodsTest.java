@@ -114,13 +114,13 @@ class MedicineLineMapperDefaultMethodsTest {
   class ToMedicineTypeTests {
 
     @ParameterizedTest(name = "should return GE for input \"{0}\"")
-    @ValueSource(strings = {"GE", "G"})
+    @ValueSource(strings = {"GE", "G", "Gé"})
     void toMedicineType_should_returnGE_when_inputIsGEorG(String input) {
       assertThat(mapper.toMedicineType(input)).isEqualTo(MedicineType.GE);
     }
 
     @ParameterizedTest(name = "should return RE for input \"{0}\"")
-    @ValueSource(strings = {"RE", "R"})
+    @ValueSource(strings = {"RE", "R", "Ré"})
     void toMedicineType_should_returnRE_when_inputIsREorR(String input) {
       assertThat(mapper.toMedicineType(input)).isEqualTo(MedicineType.RE);
     }
@@ -132,7 +132,7 @@ class MedicineLineMapperDefaultMethodsTest {
     }
 
     @ParameterizedTest(name = "should return null for unrecognised input \"{0}\"")
-    @ValueSource(strings = {"", "UNKNOWN", "ge", "re", "bio", "X"})
+    @ValueSource(strings = {"", "UNKNOWN", "ge", "re", "bio", "B", "FPREMIX", "1", "X"})
     void toMedicineType_should_returnNull_when_inputIsUnrecognised(String input) {
       assertThat(mapper.toMedicineType(input)).isNull();
     }

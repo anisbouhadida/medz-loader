@@ -125,8 +125,9 @@ public interface MedicineLineMapper {
 
   /// Converts the raw `type` string from a CSV row into a [MedicineType] enum constant.
   ///
-  /// Accepted values: `GE`, `G` → [MedicineType#GE]; `RE`, `R` → [MedicineType#RE];
-  /// `BIO` → [MedicineType#BIO]. Any other value (including `null` or blank) returns `null`.
+  /// Accepted values: `GE`, `G`, `Gé` → [MedicineType#GE]; `RE`, `R`, `Ré` →
+  /// [MedicineType#RE]; `BIO` → [MedicineType#BIO]. Any other value (including `null` or blank)
+  /// returns `null`.
   ///
   /// @param typeStr the raw type string from the CSV file — may be `null`
   /// @return the matching [MedicineType], or `null` if unrecognized or input is `null`
@@ -135,8 +136,8 @@ public interface MedicineLineMapper {
       return null;
     }
     return switch (typeStr) {
-      case "GE", "G" -> MedicineType.GE;
-      case "RE", "R" -> MedicineType.RE;
+      case "GE", "G", "Gé" -> MedicineType.GE;
+      case "RE", "R", "Ré" -> MedicineType.RE;
       case "BIO" -> MedicineType.BIO;
       default -> null;
     };

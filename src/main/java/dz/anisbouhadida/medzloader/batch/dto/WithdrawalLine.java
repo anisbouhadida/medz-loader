@@ -1,5 +1,6 @@
 package dz.anisbouhadida.medzloader.batch.dto;
 
+import jakarta.validation.constraints.NotBlank;
 import jakarta.validation.constraints.NotNull;
 import jakarta.validation.constraints.Pattern;
 import jakarta.validation.constraints.Positive;
@@ -37,35 +38,35 @@ import jakarta.validation.constraints.Positive;
 /// @param registrationHolderLaboratoryCountry  country of the registration holder laboratory
 /// @param initialRegistrationDate              date the registration was first granted as raw
 /// string — may be blank
-/// @param type                                 medicine type as raw string (`GE`/`G` for generic,
-/// `RE`/`R` for reference, or blank)
+/// @param type                                 medicine type as raw string (`GE`/`G`/`Gé` for
+/// generic, `RE`/`R`/`Ré` for reference, or blank)
 /// @param status                               registration origin as raw string (`F` for
-/// finalized, `I` for in progress)
+/// finalized, `I` for in progress, or blank)
 /// @param withdrawalDate                       date of withdrawal as raw string — may be an ISO
 /// date, a localized text, or blank
 /// @param withdrawalReason                     reason for the withdrawal — may be blank (3 rows)
 public record WithdrawalLine(
     @NotNull @Positive Integer id,
-    @Pattern(regexp = ".+", message = "registrationNumber must not be blank")
-        String registrationNumber,
-    @Pattern(regexp = ".+", message = "code must not be blank") String code,
-    @Pattern(regexp = ".+", message = "internationalCommonName must not be blank")
-        String internationalCommonName,
-    @Pattern(regexp = ".+", message = "brandName must not be blank") String brandName,
+    @NotBlank(message = "registrationNumber must not be blank") String registrationNumber,
+    @NotBlank(message = "code must not be blank") String code,
+    @NotBlank(message = "internationalCommonName must not be blank") String internationalCommonName,
+    @NotBlank(message = "brandName must not be blank") String brandName,
     String form,
     String dosage,
     String packaging,
     String list,
     String p1,
     String p2,
-    @Pattern(regexp = ".+", message = "registrationHolderLaboratory must not be blank")
+    @NotBlank(message = "registrationHolderLaboratory must not be blank")
         String registrationHolderLaboratory,
-    @Pattern(regexp = ".+", message = "registrationHolderLaboratoryCountry must not be blank")
+    @NotBlank(message = "registrationHolderLaboratoryCountry must not be blank")
         String registrationHolderLaboratoryCountry,
     String initialRegistrationDate,
-    @Pattern(regexp = "^(GE|RE|G|R|BIO)?$", message = "type must be GE, RE, G, R, BIO or blank")
+    @Pattern(
+            regexp = "^(GE|RE|G|R|Gé|Ré|BIO)?$",
+            message = "type must be GE, RE, G, R, Gé, Ré, BIO or blank")
         String type,
-    @Pattern(regexp = "^[FIi]$", message = "origin must be F, I or i") String status,
+    @Pattern(regexp = "^[FIi]?$", message = "origin must be F, I, i or blank") String status,
     String withdrawalDate,
     String withdrawalReason)
     implements MedicineLine {}

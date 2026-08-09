@@ -97,13 +97,14 @@ That means some parts are still evolving, contracts may continue to improve, and
 
 ## Features
 
-- Recursive discovery of all `*.csv` files under a configurable input directory.
+- Per-execution discovery of `*.csv` files from one release directory selected by a job parameter.
 - Support for the 3 expected medicine release file types:
   - `nomenclature.csv`
   - `non_renouveles.csv`
   - `retraits.csv`
 - Filename-based reader classification using the file name contract already used across Medz.
-- Bean Validation filtering for invalid rows without aborting the whole batch.
+- Bean Validation filtering for invalid rows without aborting the whole batch, with durable
+  field-level issue auditing.
 - Mapping from CSV DTOs to immutable domain records and sealed event types.
 - Chunk-oriented Spring Batch processing.
 - Normalized PostgreSQL persistence with:
@@ -113,7 +114,10 @@ That means some parts are still evolving, contracts may continue to improve, and
   - `non_renewal_event`
   - `withdrawal_event`
   - `medicine_event_history`
+  - `medicine_import_issue`
+  - `release_sync_history`
 - Optimistic version-aware medicine upserts.
+- Append-only metadata for each successfully synchronized release.
 - CI workflow with build, tests, formatting checks, and PostgreSQL-backed verification.
 
 ---
@@ -131,7 +135,7 @@ input/YYYY-MM/
 └── retraits.csv
 ```
 
-The loader scans recursively, so the `YYYY-MM` directory name is a project convention rather than a hard runtime requirement. What **does** matter is the filename contract:
+The required `release` job parameter selects one direct child of the configured input directory and must use the `YYYY-MM` format. The filename contract remains fixed:
 
 - filenames containing `nomenclature` are treated as nomenclature updates,
 - filenames containing `non_renouveles` are treated as non-renewals,
@@ -213,16 +217,16 @@ input/
 Run with Maven:
 
 ```bash
-./mvnw spring-boot:run
+./mvnw spring-boot:run -Dspring-boot.run.arguments="release=2025-11"
 ```
 
 Or run the packaged JAR:
 
 ```bash
-java -jar target/medz-loader-*.jar
+java -jar target/medz-loader-*.jar release=2025-11
 ```
 
-On startup, Spring Batch launches the configured job, scans the input directory recursively, and persists recognized medicine events into PostgreSQL.
+On startup, Spring Batch launches the configured job, reads CSV files directly inside `input/2025-11`, and persists recognized medicine events into PostgreSQL.
 
 ---
 
@@ -230,9 +234,10 @@ On startup, Spring Batch launches the configured job, scans the input directory 
 
 At a high level, the ETL pipeline is:
 
-1. A `MultiResourceItemReader` discovers every `**/*.csv` under `medz.loader.input-dir`.
+1. A step-scoped `MultiResourceItemReader` discovers `*.csv` files directly inside the release directory selected by the `release` job parameter.
 2. `FileAwareMedicineItemReader` switches delegate readers based on the current filename.
-3. A `BeanValidatingItemProcessor` filters invalid rows instead of failing the whole job.
+3. A validation processor filters invalid rows instead of failing the whole job and records each
+   issue. Rows with a missing optional origin are loaded with `null` and recorded as warnings.
 4. A classifier-based processor maps each CSV line into a sealed domain event:
    - `NomenclatureEvent`
    - `NonRenewalEvent`
@@ -242,13 +247,17 @@ At a high level, the ETL pipeline is:
    - records the current status in `medicine_status_history`,
    - writes the event-specific table,
    - appends to `medicine_event_history`.
+6. After the medicine-loading step completes, a tasklet records the release, job execution ID,
+   synchronization time, and item counts in `release_sync_history`, then logs issue totals grouped
+   by disposition and field.
 
 ### Important runtime conventions
 
 - **Filename-driven behavior**: `nomenclature`, `non_renouveles`, and `retraits` are part of the runtime contract.
 - **Composite business key**: medicine identity is based on `(registration_number, code, icd, brand_name, laboratory_holder)`.
 - **Optimistic versioning**: updates depend on the current stored version matching the incoming version.
-- **Validation failures are filtered**: invalid rows are skipped rather than treated as fatal job errors.
+- **Validation failures are filtered**: invalid rows are skipped rather than treated as fatal job
+  errors, and their source identity and violations are retained in `medicine_import_issue`.
 
 ---
 
@@ -264,8 +273,13 @@ Main tables:
 - `non_renewal_event`: event-specific non-renewal payload.
 - `withdrawal_event`: event-specific withdrawal payload.
 - `medicine_event_history`: generic event log across event types.
+- `medicine_import_issue`: field-level audit of filtered rows and rows loaded with warnings.
+- `release_sync_history`: append-only metadata for successful release synchronizations.
 
 The schema is designed for normalized storage and repeatable ingestion across multiple release cycles.
+
+The latest available release is the greatest `YYYY-MM` value in `release_sync_history`. A successful
+rerun appends another history row for the same release instead of replacing its previous entry.
 
 ---
 
@@ -273,7 +287,8 @@ The schema is designed for normalized storage and repeatable ingestion across mu
 
 The main typed properties are exposed through `MedzLoaderProperties`:
 
-- `medz.loader.input-dir`: base directory scanned recursively for CSV files.
+- `medz.loader.input-dir`: base directory containing one direct child directory per release.
+- `release` job parameter: required `YYYY-MM` directory name for the single release processed by the job execution.
 - `medz.loader.registration-zone-id`: source timezone used to convert registration dates to UTC timestamps for storage.
 
 Default values are currently defined in `src/main/resources/application.properties`.
