@@ -46,5 +46,6 @@ class MedzLoaderJobConfigurationTest {
     assertThat(((SimpleJob) job).getStepNames())
         .containsExactly("medzLoaderStep", "releaseSyncHistoryStep");
     assertThat(job.getJobParametersValidator()).isSameAs(validator);
+    assertThat(job.getJobParametersIncrementer()).isNull();
   }
 }

@@ -16,8 +16,10 @@ import org.springframework.boot.context.properties.EnableConfigurationProperties
 @EnableConfigurationProperties(MedzLoaderProperties.class)
 public class MedzLoaderApplication {
 
-  /// Starts the Spring Boot application.
-  void main() {
-    SpringApplication.run(MedzLoaderApplication.class);
+  /// Starts the Spring Boot application with the supplied command-line arguments.
+  ///
+  /// @param args application arguments, including Spring Batch job parameters
+  void main(String[] args) {
+    SpringApplication.run(MedzLoaderApplication.class, args);
   }
 }

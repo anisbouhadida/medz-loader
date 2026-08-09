@@ -3,7 +3,6 @@ package dz.anisbouhadida.medzloader.batch.config.job;
 import dz.anisbouhadida.medzloader.batch.support.validator.ReleaseJobParametersValidator;
 import org.springframework.batch.core.job.Job;
 import org.springframework.batch.core.job.builder.JobBuilder;
-import org.springframework.batch.core.job.parameters.RunIdIncrementer;
 import org.springframework.batch.core.repository.JobRepository;
 import org.springframework.batch.core.step.Step;
 import org.springframework.beans.factory.annotation.Qualifier;
@@ -36,7 +35,6 @@ public class MedzLoaderJobConfiguration {
       @Qualifier("releaseSyncHistoryStep") Step releaseSyncHistoryStep,
       ReleaseJobParametersValidator releaseJobParametersValidator) {
     return new JobBuilder("medzLoaderJob", jobRepository)
-        .incrementer(new RunIdIncrementer())
         .validator(releaseJobParametersValidator)
         .start(medzLoaderStep)
         .next(releaseSyncHistoryStep)
