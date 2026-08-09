@@ -6,13 +6,14 @@ import org.springframework.batch.core.job.builder.JobBuilder;
 import org.springframework.batch.core.job.parameters.RunIdIncrementer;
 import org.springframework.batch.core.repository.JobRepository;
 import org.springframework.batch.core.step.Step;
+import org.springframework.beans.factory.annotation.Qualifier;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
 
 /// Configuration class that defines the Spring Batch [Job] for loading medicine data.
 ///
-/// The job consists of a single [Step] that reads, processes, and writes
-/// medicine records from CSV files into the target data store.
+/// The job loads medicine records from CSV files and then records the successful release
+/// synchronization.
 ///
 /// @author Anis Bouhadida
 /// @since 0.0.1
@@ -21,22 +22,24 @@ public class MedzLoaderJobConfiguration {
 
   /// Creates the `medzLoaderJob` batch [Job].
   ///
-  /// The job starts with the provided [Step] and is persisted via the
-  /// given [JobRepository].
+  /// The job loads the medicine data first, then records the release synchronization metadata.
   ///
   /// @param jobRepository   the repository used to persist job metadata
   /// @param medzLoaderStep  the step that performs the medicine loading work
+  /// @param releaseSyncHistoryStep the step that records the successful synchronization
   /// @param releaseJobParametersValidator the validator for the required release parameter
   /// @return a fully configured batch job
   @Bean
   public Job medzLoaderJob(
       JobRepository jobRepository,
-      Step medzLoaderStep,
+      @Qualifier("medzLoaderStep") Step medzLoaderStep,
+      @Qualifier("releaseSyncHistoryStep") Step releaseSyncHistoryStep,
       ReleaseJobParametersValidator releaseJobParametersValidator) {
     return new JobBuilder("medzLoaderJob", jobRepository)
         .incrementer(new RunIdIncrementer())
         .validator(releaseJobParametersValidator)
         .start(medzLoaderStep)
+        .next(releaseSyncHistoryStep)
         .build();
   }
 }

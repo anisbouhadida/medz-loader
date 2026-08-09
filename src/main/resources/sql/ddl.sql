@@ -103,6 +103,33 @@ CREATE INDEX IF NOT EXISTS idx_medicine_last_updated
 
 
 -- =====================================================
+-- RELEASE SYNCHRONIZATION HISTORY
+-- One row per successful job execution
+-- =====================================================
+
+CREATE TABLE IF NOT EXISTS release_sync_history (
+
+    release_sync_history_id BIGSERIAL PRIMARY KEY,
+
+    release VARCHAR(7) NOT NULL,
+    job_execution_id BIGINT NOT NULL UNIQUE,
+    synchronized_at TIMESTAMPTZ NOT NULL DEFAULT now(),
+
+    read_count BIGINT NOT NULL,
+    write_count BIGINT NOT NULL,
+    filter_count BIGINT NOT NULL,
+
+    CONSTRAINT chk_release_sync_history_release
+        CHECK (release ~ '^[0-9]{4}-(0[1-9]|1[0-2])$'),
+    CONSTRAINT chk_release_sync_history_counts
+        CHECK (read_count >= 0 AND write_count >= 0 AND filter_count >= 0)
+    );
+
+CREATE INDEX IF NOT EXISTS idx_release_sync_history_release
+    ON release_sync_history (release DESC, synchronized_at DESC);
+
+
+-- =====================================================
 -- STATUS HISTORY
 -- =====================================================
 

@@ -113,7 +113,9 @@ That means some parts are still evolving, contracts may continue to improve, and
   - `non_renewal_event`
   - `withdrawal_event`
   - `medicine_event_history`
+  - `release_sync_history`
 - Optimistic version-aware medicine upserts.
+- Append-only metadata for each successfully synchronized release.
 - CI workflow with build, tests, formatting checks, and PostgreSQL-backed verification.
 
 ---
@@ -242,6 +244,8 @@ At a high level, the ETL pipeline is:
    - records the current status in `medicine_status_history`,
    - writes the event-specific table,
    - appends to `medicine_event_history`.
+6. After the medicine-loading step completes, a tasklet records the release, job execution ID,
+   synchronization time, and item counts in `release_sync_history`.
 
 ### Important runtime conventions
 
@@ -264,8 +268,12 @@ Main tables:
 - `non_renewal_event`: event-specific non-renewal payload.
 - `withdrawal_event`: event-specific withdrawal payload.
 - `medicine_event_history`: generic event log across event types.
+- `release_sync_history`: append-only metadata for successful release synchronizations.
 
 The schema is designed for normalized storage and repeatable ingestion across multiple release cycles.
+
+The latest available release is the greatest `YYYY-MM` value in `release_sync_history`. A successful
+rerun appends another history row for the same release instead of replacing its previous entry.
 
 ---
 

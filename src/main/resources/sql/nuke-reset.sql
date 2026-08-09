@@ -4,6 +4,7 @@
 -- ============================================================
 
 DROP TABLE IF EXISTS
+    release_sync_history,
     medicine,
     medicine_status_history,
     nomenclature_event,
