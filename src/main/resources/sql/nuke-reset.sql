@@ -4,6 +4,7 @@
 -- ============================================================
 
 DROP TABLE IF EXISTS
+    medicine_import_issue,
     release_sync_history,
     medicine,
     medicine_status_history,

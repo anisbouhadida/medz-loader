@@ -3,6 +3,7 @@ package dz.anisbouhadida.medzloader.batch.tasklet;
 import static dz.anisbouhadida.medzloader.batch.support.utils.MedicineSqlUtils.loadSql;
 
 import lombok.RequiredArgsConstructor;
+import lombok.extern.slf4j.Slf4j;
 import org.springframework.batch.core.BatchStatus;
 import org.springframework.batch.core.repository.JobRepository;
 import org.springframework.batch.core.scope.context.ChunkContext;
@@ -24,11 +25,14 @@ import org.springframework.stereotype.Component;
 /// @since 0.2.1
 @Component
 @RequiredArgsConstructor
+@Slf4j
 public class ReleaseSyncHistoryTasklet implements Tasklet {
 
   private static final String RELEASE_PARAMETER = "release";
   private static final String MEDZ_LOADER_STEP = "medzLoaderStep";
   private static final String INSERT_SQL = loadSql("sql/write/release-sync-history-insert.sql");
+  private static final String ISSUE_SUMMARY_SQL =
+      loadSql("sql/read/medicine-import-issue-summary.sql");
 
   private final JobRepository jobRepository;
   private final NamedParameterJdbcTemplate jdbcTemplate;
@@ -56,8 +60,41 @@ public class ReleaseSyncHistoryTasklet implements Tasklet {
             .addValue("writeCount", loaderStepExecution.getWriteCount())
             .addValue("filterCount", loaderStepExecution.getFilterCount());
     jdbcTemplate.update(INSERT_SQL, parameters);
+    logCompletionSummary(
+        jobExecution.getId(),
+        jobExecution.getJobParameters().getString(RELEASE_PARAMETER),
+        loaderStepExecution);
 
     return RepeatStatus.FINISHED;
+  }
+
+  private void logCompletionSummary(
+      Long jobExecutionId, String release, StepExecution loaderStepExecution) {
+    log.info(
+        "Medicine release synchronized: release={}, readCount={}, writeCount={}, filterCount={}",
+        release,
+        loaderStepExecution.getReadCount(),
+        loaderStepExecution.getWriteCount(),
+        loaderStepExecution.getFilterCount());
+
+    var parameters = new MapSqlParameterSource("jobExecutionId", jobExecutionId);
+    var summaries =
+        jdbcTemplate.query(
+            ISSUE_SUMMARY_SQL,
+            parameters,
+            (resultSet, _) ->
+                new ImportIssueSummary(
+                    resultSet.getString("disposition"),
+                    resultSet.getString("field_name"),
+                    resultSet.getLong("issue_count")));
+    summaries.forEach(
+        summary ->
+            log.warn(
+                "Medicine import issue summary: release={}, disposition={}, field={}, count={}",
+                release,
+                summary.disposition(),
+                summary.fieldName(),
+                summary.count()));
   }
 
   private void validateLoaderStepExecution(StepExecution loaderStepExecution) {
@@ -65,4 +102,6 @@ public class ReleaseSyncHistoryTasklet implements Tasklet {
       throw new IllegalStateException("No completed medzLoaderStep execution was found");
     }
   }
+
+  private record ImportIssueSummary(String disposition, String fieldName, long count) {}
 }

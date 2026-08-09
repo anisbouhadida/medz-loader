@@ -103,6 +103,44 @@ CREATE INDEX IF NOT EXISTS idx_medicine_last_updated
 
 
 -- =====================================================
+-- IMPORT DATA-QUALITY ISSUES
+-- Field-level details for filtered or degraded items
+-- =====================================================
+
+CREATE TABLE IF NOT EXISTS medicine_import_issue (
+
+    medicine_import_issue_id BIGSERIAL PRIMARY KEY,
+
+    release VARCHAR(7) NOT NULL,
+    job_execution_id BIGINT NOT NULL,
+    source_file TEXT NOT NULL,
+    source_item_id INTEGER,
+
+    registration_number TEXT,
+    code TEXT,
+    brand_name TEXT,
+    laboratory_holder TEXT,
+
+    disposition TEXT NOT NULL,
+    field_name TEXT NOT NULL,
+    rejected_value TEXT,
+    message TEXT NOT NULL,
+    recorded_at TIMESTAMPTZ NOT NULL DEFAULT now(),
+
+    CONSTRAINT chk_medicine_import_issue_release
+        CHECK (release ~ '^[0-9]{4}-(0[1-9]|1[0-2])$'),
+    CONSTRAINT chk_medicine_import_issue_disposition
+        CHECK (disposition IN ('FILTERED', 'LOADED_WITH_WARNING'))
+    );
+
+CREATE INDEX IF NOT EXISTS idx_medicine_import_issue_job_execution
+    ON medicine_import_issue (job_execution_id);
+
+CREATE INDEX IF NOT EXISTS idx_medicine_import_issue_release
+    ON medicine_import_issue (release DESC, disposition, field_name);
+
+
+-- =====================================================
 -- RELEASE SYNCHRONIZATION HISTORY
 -- One row per successful job execution
 -- =====================================================

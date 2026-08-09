@@ -3,7 +3,8 @@ package dz.anisbouhadida.medzloader.domain.model.enums;
 /// Describes the manufacturing origin of a [dz.anisbouhadida.medzloader.domain.model.Medicine].
 ///
 /// Sourced from the `status` column of the CSV files, where `F` maps to
-/// [#MANUFACTURED] and `I` (or `i`) maps to [#IMPORTED].
+/// [#MANUFACTURED] and `I` (or `i`) maps to [#IMPORTED]. A blank source value maps to `null` and is
+/// recorded as an import warning.
 ///
 /// @author Anis Bouhadida
 /// @since 0.0.1
