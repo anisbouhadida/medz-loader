@@ -1,5 +1,6 @@
 package dz.anisbouhadida.medzloader.batch.config.job;
 
+import dz.anisbouhadida.medzloader.batch.support.validator.ReleaseJobParametersValidator;
 import org.springframework.batch.core.job.Job;
 import org.springframework.batch.core.job.builder.JobBuilder;
 import org.springframework.batch.core.job.parameters.RunIdIncrementer;
@@ -25,11 +26,16 @@ public class MedzLoaderJobConfiguration {
   ///
   /// @param jobRepository   the repository used to persist job metadata
   /// @param medzLoaderStep  the step that performs the medicine loading work
+  /// @param releaseJobParametersValidator the validator for the required release parameter
   /// @return a fully configured batch job
   @Bean
-  public Job medzLoaderJob(JobRepository jobRepository, Step medzLoaderStep) {
+  public Job medzLoaderJob(
+      JobRepository jobRepository,
+      Step medzLoaderStep,
+      ReleaseJobParametersValidator releaseJobParametersValidator) {
     return new JobBuilder("medzLoaderJob", jobRepository)
         .incrementer(new RunIdIncrementer())
+        .validator(releaseJobParametersValidator)
         .start(medzLoaderStep)
         .build();
   }

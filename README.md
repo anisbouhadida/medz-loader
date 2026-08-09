@@ -131,7 +131,7 @@ input/YYYY-MM/
 └── retraits.csv
 ```
 
-The `release` job parameter selects one direct child of the configured input directory. The directory name can follow any project convention, while the filename contract remains fixed:
+The required `release` job parameter selects one direct child of the configured input directory and must use the `YYYY-MM` format. The filename contract remains fixed:
 
 - filenames containing `nomenclature` are treated as nomenclature updates,
 - filenames containing `non_renouveles` are treated as non-renewals,
@@ -274,7 +274,7 @@ The schema is designed for normalized storage and repeatable ingestion across mu
 The main typed properties are exposed through `MedzLoaderProperties`:
 
 - `medz.loader.input-dir`: base directory containing one direct child directory per release.
-- `release` job parameter: directory name for the single release processed by the job execution.
+- `release` job parameter: required `YYYY-MM` directory name for the single release processed by the job execution.
 - `medz.loader.registration-zone-id`: source timezone used to convert registration dates to UTC timestamps for storage.
 
 Default values are currently defined in `src/main/resources/application.properties`.
