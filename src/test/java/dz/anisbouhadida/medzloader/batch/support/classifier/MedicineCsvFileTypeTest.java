@@ -17,8 +17,7 @@ class MedicineCsvFileTypeTest {
     "retraits_2026.csv, WITHDRAWAL",
     "non_renouveles.csv, NON_RENEWAL"
   })
-  void fromFilename_shouldClassifyRecognizedFiles(
-      String filename, MedicineCsvFileType expected) {
+  void fromFilename_shouldClassifyRecognizedFiles(String filename, MedicineCsvFileType expected) {
     assertThat(MedicineCsvFileType.fromFilename(filename)).isEqualTo(expected);
   }
 
