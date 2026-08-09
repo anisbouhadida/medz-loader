@@ -1,4 +1,4 @@
-package dz.anisbouhadida.medzloader.batch.config.item.writer;
+package dz.anisbouhadida.medzloader.batch.config.writer;
 
 import static dz.anisbouhadida.medzloader.batch.support.utils.MedicineSqlUtils.compositeKeyParams;
 import static dz.anisbouhadida.medzloader.batch.support.utils.MedicineSqlUtils.loadSql;

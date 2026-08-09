@@ -1,4 +1,4 @@
-package dz.anisbouhadida.medzloader.batch.config;
+package dz.anisbouhadida.medzloader.batch.config.job;
 
 import org.springframework.batch.core.job.Job;
 import org.springframework.batch.core.job.builder.JobBuilder;

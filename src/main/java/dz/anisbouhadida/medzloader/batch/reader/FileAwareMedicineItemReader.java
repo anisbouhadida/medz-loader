@@ -21,9 +21,7 @@ import org.springframework.core.io.Resource;
 /// configured with the matching column layout and target DTO type.
 ///
 /// This class implements [ResourceAwareItemReaderItemStream] so it can be used
-/// with a
-///
-// [MultiResourceItemReader][org.springframework.batch.infrastructure.item.file.MultiResourceItemReader].
+/// with a [MultiResourceItemReader][org.springframework.batch.infrastructure.item.file.MultiResourceItemReader].
 @RequiredArgsConstructor
 public class FileAwareMedicineItemReader
     implements ResourceAwareItemReaderItemStream<MedicineLine> {

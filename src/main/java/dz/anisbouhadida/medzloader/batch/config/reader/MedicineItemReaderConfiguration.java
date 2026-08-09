@@ -1,4 +1,4 @@
-package dz.anisbouhadida.medzloader.batch.config.item.reader;
+package dz.anisbouhadida.medzloader.batch.config.reader;
 
 import dz.anisbouhadida.medzloader.batch.dto.MedicineLine;
 import dz.anisbouhadida.medzloader.batch.reader.FileAwareMedicineItemReader;
@@ -91,7 +91,7 @@ public class MedicineItemReaderConfiguration {
   }
 
   /// Creates the [MedicineItemReaderClassifier] responsible for mapping a
-  /// CSV filename to its corresponding [FlatFileItemReader].
+  /// CSV filename to its corresponding [org.springframework.batch.infrastructure.item.file.FlatFileItemReader].
   ///
   /// @param medicineItemReaderFactory the factory used to build pre-configured flat-file readers
   /// for each CSV format
@@ -103,7 +103,7 @@ public class MedicineItemReaderConfiguration {
   }
 
   /// Creates the [MedicineItemReaderFactory] that builds pre-configured
-  /// [FlatFileItemReader] instances for each supported CSV format.
+  /// [org.springframework.batch.infrastructure.item.file.FlatFileItemReader]] instances for each supported CSV format.
   ///
   /// @return a new [MedicineItemReaderFactory] instance ready to produce format-specific readers
   @Bean
